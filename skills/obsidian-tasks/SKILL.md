@@ -1,6 +1,6 @@
 ---
 name: obsidian-tasks
-description: Manage Obsidian Tasks using natural language. Create, modify, complete, and search tasks with subtask linking, project integration, and urgent next action filtering. Use when the user wants to: create new tasks, modify or update existing tasks, mark tasks complete, search or view tasks using natural language, filter for urgent or next action items, link tasks to subtasks or Obsidian Projects, or manage task workflows.
+description: Manage Obsidian Tasks using natural language. Create, modify, complete, and search tasks with subtask linking, project integration, and urgent next action filtering.
 ---
 
 # Obsidian Tasks
