@@ -39,7 +39,9 @@ The geek way works because it taps into **humanity's superpower**: the ability t
 
 ---
 
-## The Four Core Geek Norms
+## The Four Core Geek Norms (SOSO Framework)
+
+The four norms can be remembered by the acronym **SOSO**: **S**cience, **O**wnership, **S**peed, **O**penness. These four norms work as an integrated system — adopting only one or two without the others creates imbalance and reduces effectiveness.
 
 ### 1. 🔬 Science
 **Make decisions based on evidence, not authority, instinct, or tradition.**
