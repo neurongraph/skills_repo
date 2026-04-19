@@ -7,11 +7,11 @@ description: Processes raw Obsidian journal entries (daily notes or yearly files
 
 This skill converts raw Obsidian journal entries (typically bullet-point daily notes) into clean, readable prose. The transformation has two parts: bullets become flowing sentences, and abbreviations are expanded naturally on first mention so the text reads clearly without a glossary in hand.
 
-## Before You Start: Load the Entity Glossary
+## Step 1: Before You Start: Load the Entity Glossary
 
 Read `Processed_Entries/Entity_Glossary.md` before processing any entries. This file is the authoritative reference for who people are, what places and organisations mean, and how abbreviations expand. Use it to write entries correctly — but do not echo its contents inline as annotations. If the glossary doesn't exist yet, proceed using context from the entries themselves. If new entities are found in the journal entries (that don't exist in the Entity_Glossary.md), please add them to this file and mark them as TODOs for the user to verify before the next run.
 
-## The Core Transformation
+## Step 2: The Core Transformation
 
 **Raw input:**
 ```markdown
@@ -51,13 +51,13 @@ Group related bullets into paragraphs — if three bullets all describe one meet
 
 Use clear, plain sentence structure. No literary flourishes, no editorial commentary. The goal is readability and completeness, not style.
 
-## Output
+### Output
 
 - Save to `Processed_Entries/yyyy-mm-dd.md`
 - The first line is the date (e.g., `2025-01-02`), then a blank line, then the prose paragraphs
 - Do NOT include the "# What happened today?" header in output
 
-## Example
+### Example
 
 **Input** (`2025-01-02` section of a daily note):
 ```
@@ -80,7 +80,8 @@ I had expected a lighter day, but a sudden request to prepare a deck for Corpora
 I stayed in the office until almost 8 pm, finishing some financial tasks including paying my Life Insurance premium.
 ```
 
-## Processing Yearly Files
+
+### Processing Yearly Files
 
 Yearly files (e.g., `2021.md`, `2022.md`) contain multiple daily entries in a nested structure. For each:
 
@@ -91,3 +92,6 @@ Yearly files (e.g., `2021.md`, `2022.md`) contain multiple daily entries in a ne
 5. Save each as `Processed_Entries/yyyy-mm-dd.md` — one file per day
 
 Process in chronological order. If you're processing a large yearly file, confirm with the user whether they want all entries processed or just a date range.
+
+## Step 3: Updating the Glossary
+If new entities are found in the journal entries processed in this session (that don't exist in the Entity_Glossary.md), please add them to this file and mark them as TODOs for the user to verify before the next run.
