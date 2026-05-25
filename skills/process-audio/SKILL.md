@@ -1,48 +1,63 @@
 ---
 name: process-audio
-description: Takes an audio file and processes it using a Voice LLM to create a transcript. Use this skill when user mentions audio processing or voice memos or transcription
+description: Transcribes audio files (voice memos, recordings, meetings) into text using a local ASR model (qwen3_asr_rs). Processes all audio in the configured input directory and saves transcripts as text files. Use this skill whenever the user wants to transcribe audio, convert speech to text, process voice memos, or get spoken content into written form — even if they don't use the word "transcribe".
 ---
 
 # Instructions
-## Step 1 : Check the pre-requesites
-We will use [qwen3_asr_rs](https://github.com/second-state/qwen3_asr_rs) to process the audio file and create a transcript.
-This requires that qwen3_asr_rs and ffmpeg are installed.
 
-Check if all the environment variables needed for this skill are set:
-- `ASR_CLI`: The path to the ASR CLI executable.
-- `MODEL_PATH`: The path to the model file used for transcription.
-- `AUDIO_TEMP_DIR`: The directory where the audio input is present, the temporary .wav file and audio transcript.txtwill be saved.
+## Step 1: Check Prerequisites
 
-If these environment variables are not set, check for them in the .env file in the project root. If they are not found, the skill will not be able to run. Ask the user to set them manually or update the .env file. Especially point out that this skill requires `ASR_CLI` to be set to the path where qwen3_asr_rs is installed. If the user has not installed qwen3_asr_rs, ask them to do so and set the `ASR_CLI` environment variable accordingly. Advise them to use the following command to install qwen3_asr_rs:
+This skill uses [qwen3_asr_rs](https://github.com/second-state/qwen3_asr_rs) for transcription and `ffmpeg` for audio format conversion.
+
+Check whether these three environment variables are set in the current shell. If not, read the `.env` file in the project root (`cat .env`) and look for them there:
+
+- `ASR_CLI` — path to the directory containing the `asr` executable (e.g. `~/.local/bin`)
+- `MODEL_PATH` — full path to the Qwen3 ASR model file used for transcription
+- `AUDIO_TEMP_DIR` — base directory for audio processing; inputs, converted WAVs, and transcripts all live under here
+
+If any variable is missing, stop here and tell the user what's missing. Provide these pointers:
+- **Installing qwen3_asr_rs**: `curl -sSf https://raw.githubusercontent.com/second-state/qwen3_asr_rs/main/install.sh | bash`
+- **Getting a model**: follow the [qwen3_asr_rs documentation](https://github.com/second-state/qwen3_asr_rs) to download the Qwen3 ASR model file, then set `MODEL_PATH` to its full path
+- **Setting env vars**: export them in the shell or add them to a `.env` file in the project root
+
+Do not continue to Step 2 until all three variables are confirmed.
+
+## Step 2: Transcribe Audio Files
+
+Set up the working directories, creating them if they don't exist:
 
 ```bash
-curl -sSf https://raw.githubusercontent.com/second-state/qwen3_asr_rs/main/install.sh | bash
+mkdir -p "$AUDIO_TEMP_DIR/outputs" "$AUDIO_TEMP_DIR/transcripts"
 ```
 
-Stop the execution of this skill here, and ask the user to retry after all insallation pre-requisites and the environment variables are set.
+- Input: `$AUDIO_TEMP_DIR/inputs` — must already exist and contain audio files
+- Converted WAVs: `$AUDIO_TEMP_DIR/outputs`
+- Transcripts: `$AUDIO_TEMP_DIR/transcripts`
 
-## Step 2 : Transcribe all the audio to text
-Ensure that the AUDIO_TEMP_DIR/inputs directory exists and contains audio files to be transcribed.
-Ensure that the AUDIO_OUTPUT_DIR directory exists and is writable. This should be AUDIO_TEMP_DIR/outputs. Create this dir if it does not exist.
-Ensure that the AUDIO_TRANSCRIPTS_DIR directory exists and is writable. This should be AUDIO_TEMP_DIR/transcripts. Create this dir if it does not exist.
+Look for files in `$AUDIO_TEMP_DIR/inputs` with these extensions: `.m4a`, `.mp3`, `.wav`, `.flac`, `.aac`, `.ogg`, `.opus`. Skip any other file types.
 
-For every audio file in the AUDIO_TEMP_DIR/inputs, do the following:
-- If the audio file is not in .wav format, convert it to .wav using ffmpeg
-  - `ffmpeg -i <input_file>.m4a -ar 16000 -ac 1 AUDIO_OUTPUT_DIR/<output_file>.wav`
-  - Note that in the above the input file can be other audio formats such as .mp3, .wav, .flac, etc.
-- Transcribe the audio file using the ASR CLI.
-  - `ASR_CLI/asr MODEL_PATH AUDIO_OUTPUT_DIR/<output_file>.wav > AUDIO_TRANSCRIPTS_DIR/<output_file>.txt 2>&1`
-  - Note: The ASR CLI outputs to stdout (not a file parameter), so use `>` to redirect output to the transcript file.
+If no matching audio files are found, tell the user and stop.
 
-## Step 3 : Append transcript to Daily Notes
-Read `.obsidian/daily-notes.json` to understand:
-1. Naming convention of daily notes (default `YYYY-MM-DD.md`)
-2. Template for daily notes
-3. Location of daily notes files
+For each audio file found:
 
-Read each of the transcript files and append it to the appropriate daily notes.
-If the daily note does not exist, create it using the template and the transcript.
-If the daily note already exists, append the transcript to the end of the note.
+**1. Convert to WAV** (skip this step if the file is already `.wav`):
+```bash
+ffmpeg -i "$AUDIO_TEMP_DIR/inputs/<filename>" -ar 16000 -ac 1 "$AUDIO_TEMP_DIR/outputs/<basename>.wav"
+```
 
-## Step 4 : Clean-up
-Ask the user and on his confirmation remove the temporary audio files from AUDIO_INPUT_DIR, AUDIO_OUTPUT_DIR and the transcript files from AUDIO_TRANSCRIPTS_DIR.
+**2. Transcribe** using the ASR CLI:
+```bash
+"$ASR_CLI/asr" "$MODEL_PATH" "$AUDIO_TEMP_DIR/outputs/<basename>.wav" \
+  > "$AUDIO_TEMP_DIR/transcripts/<basename>.txt" \
+  2>"$AUDIO_TEMP_DIR/transcripts/<basename>.err"
+```
+
+Stderr is redirected to a separate `.err` file so errors don't pollute the transcript. After each transcription, check whether the `.err` file is non-empty and warn the user if it contains anything.
+
+When all files are processed, tell the user how many were transcribed and where the transcripts are saved: `$AUDIO_TEMP_DIR/transcripts/`.
+
+## Step 3: Clean Up Intermediate Files
+
+The converted WAV files in `$AUDIO_TEMP_DIR/outputs` are intermediate artifacts — the original audio and the transcripts are what matter. Ask the user whether to delete the WAV files now.
+
+The original files in `$AUDIO_TEMP_DIR/inputs` and the transcripts in `$AUDIO_TEMP_DIR/transcripts` are left in place.
