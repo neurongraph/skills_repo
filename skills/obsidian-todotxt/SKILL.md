@@ -125,3 +125,22 @@ To surface the most important tasks, fetch and return 6 uncompleted tasks: the t
 - Task description without priority +project @context due:2026-05-30
 - **(B)** Another task description due:2026-06-02
 ```
+
+**Helper Script Reference**:
+A reusable Python script is available at `references/get_top_todos.py` that implements this logic. Call it from the vault root:
+
+```bash
+python3 .claude/skills/obsidian-todotxt/references/get_top_todos.py <path_to_todo_file>
+```
+
+Or with environment variables:
+```bash
+python3 .claude/skills/obsidian-todotxt/references/get_top_todos.py "$TODO_PATH"
+```
+
+This script:
+- Parses uncompleted tasks (skips `x ` prefixed tasks)
+- Sorts by priority (A > B > C > ... > no priority)
+- Sorts by due date (earliest first)
+- Combines and deduplicates to return top 6
+- Formats output as a prioritized markdown list

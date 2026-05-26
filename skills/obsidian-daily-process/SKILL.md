@@ -7,22 +7,37 @@ description: Orchestrates the full Obsidian vault processing pipeline: transcrib
 
 This skill orchestrates the full Obsidian vault processing pipeline: audio transcription, transcript classification and filing, and triggering of downstream vault update processes.
 
+## Environment Setup
+
+This workflow requires environment variables from `.env`: `ASR_CLI`, `MODEL_PATH`, `AUDIO_TEMP_DIR`, `IDEAS_INBOX`, `TODO_PATH`, and `OBSIDIAN_VAULT`.
+
+If variables are undefined, prefix bash commands with:
+```bash
+set -a; source .env; set +a &&
+```
+
+**Important:** The current working directory should be the Obsidian vault root (the directory containing `.obsidian/`).
+
 ## Step 1: Invoke the process-audio Skill
 
 Run the `process-audio` skill to transcribe all audio files in `$AUDIO_TEMP_DIR/inputs`.
 
 It will check prerequisites, convert and transcribe all audio, and save transcripts to `$AUDIO_TEMP_DIR/transcripts/`. Wait for it to complete before continuing. If it stops due to missing prerequisites or no files found, stop here too.
 
-## Step 2: Locate the Obsidian Vault
+## Step 2: Verify Obsidian Vault Root
 
-Determine where the Obsidian vault is. Check in this order:
+This workflow assumes the current working directory is the Obsidian vault root (the directory containing `.obsidian/`). Verify:
 
-1. The current working directory — if it contains an `.obsidian/` folder, treat it as the vault root
-2. An `OBSIDIAN_VAULT` environment variable, if set
-3. The `.env` file in the current working directory (`cat .env | grep OBSIDIAN_VAULT`)
-4. Ask the user to provide the vault path
+```bash
+[ -d ".obsidian" ] && echo "✓ Vault root confirmed"
+```
 
-The vault root is the directory that contains the `.obsidian/` folder. Confirm this is correct before proceeding.
+If `.obsidian/` is not in the current directory, the user should:
+1. Check if `OBSIDIAN_VAULT` environment variable is set (it will be loaded in the Environment Setup step)
+2. If set, change to that directory: `cd "$OBSIDIAN_VAULT"`
+3. If not set, ask the user to provide the vault path or cd into it before running this workflow
+
+All subsequent file paths are relative to the vault root (e.g., `KB_2/00. Inbox/02. Tasks/todo.md`).
 
 ## Step 3: Read Daily Notes Configuration
 
@@ -43,8 +58,20 @@ For each `.txt` file in `$AUDIO_TEMP_DIR/transcripts/`, first classify it, then 
 
 Read the transcript and determine its type using these rules, applied in order:
 
-1. **Daily Note** — The transcript opens with a date reference (e.g. "Monday", "May 20th", "yesterday", "2025-05-19"). The date in the opening words determines which daily note it belongs to.
-2. **Idea** — The transcript contains the word "idea" (case-insensitive) in the first 5 words.
+1. **Daily Note** — The transcript opens with a date reference. Check the first ~20 characters for day names (Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, yesterday, today, tomorrow) or date patterns (May, Jan, Feb, etc., or YYYY-MM-DD format). The date in the opening words determines which daily note it belongs to.
+   
+   ```bash
+   if echo "$transcript" | grep -qi "^[^a-z]*\(monday\|tuesday\|wednesday\|thursday\|friday\|saturday\|sunday\|yesterday\|today\|tomorrow\|january\|february\|march\|april\|may\|june\|july\|august\|september\|october\|november\|december\)"; then
+     # Daily Note
+   ```
+
+2. **Idea** — The transcript contains the word "idea" (case-insensitive) in the first 5 words. Simple check without complex patterns:
+   
+   ```bash
+   if echo "$transcript" | head -c 100 | grep -qi "idea"; then
+     # Idea
+   ```
+
 3. **Todo** — Everything else. Task-oriented language ("I need to", "remind me", "follow up", "don't forget", "action item") with no date reference at the start and no mention of "idea" signals a todo or task capture.
 
 A transcript matches the first rule that fits — so a note that opens with a date is always a Daily Note even if it also mentions "idea" or tasks.
