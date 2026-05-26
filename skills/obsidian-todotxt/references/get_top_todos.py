@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """
-Get top 6 todos from todo.txt file.
-Returns the top 3 by priority and top 3 by due date (combining and deduplicating).
+Get top 6 todos from todo.txt file using composite urgency scoring.
+Urgency = priority_score * 3 + proximity_score
+
+Priority score: A=26, B=25, ... Z=1, none=0
+Proximity score: overdue days*2 (max 50), or (30 - days_until) for tasks due within 30 days
 
 Usage:
   python3 get_top_todos.py <path_to_todo_file>
@@ -9,10 +12,34 @@ Usage:
 
 import re
 import sys
+from datetime import date, datetime
 from pathlib import Path
 
+def compute_urgency(priority, due_date, today):
+    priority_score = 0
+    if priority:
+        priority_score = 27 - (ord(priority) - ord('A') + 1)
+
+    if due_date is None:
+        proximity_score = 0
+    else:
+        due = datetime.strptime(due_date, "%Y-%m-%d").date()
+        days_until = (due - today).days
+        if days_until < 0:
+            proximity_score = min(50, abs(days_until) * 2)
+        elif days_until <= 30:
+            proximity_score = 30 - days_until
+        else:
+            proximity_score = 0
+
+    return priority_score * 3 + proximity_score
+
+def is_pure_url(line):
+    stripped = line.strip()
+    return stripped.startswith("https://") and "@" not in stripped and "+" not in stripped and "due:" not in stripped
+
 def get_top_todos(todo_file_path):
-    """Parse todo file and return top 6 todos (3 by priority, 3 by due date)."""
+    today = date.today()
 
     with open(todo_file_path, "r") as f:
         lines = f.readlines()
@@ -20,64 +47,47 @@ def get_top_todos(todo_file_path):
     tasks = []
     for line in lines:
         line = line.rstrip()
-        # Skip empty lines, headers, separators, URLs
-        if not line or line.startswith("---") or line.startswith("## @") or line.startswith("### +") or line.startswith("https://"):
+        if not line or line.startswith("---") or line.startswith("## @") or line.startswith("### +"):
             continue
-
-        # Skip completed tasks
+        if is_pure_url(line):
+            continue
         if line.startswith("x "):
             continue
 
-        # Extract priority
         priority_match = re.match(r'^\(([A-Z])\)\s+(.*)', line)
         if priority_match:
             priority = priority_match.group(1)
             desc = priority_match.group(2)
-            priority_num = ord(priority)  # A=65, B=66, etc.
         else:
             priority = None
-            priority_num = 90  # Z = lowest priority
             desc = line
 
-        # Extract due date
         due_match = re.search(r'due:(\d{4}-\d{2}-\d{2})', desc)
-        if due_match:
-            due_date = due_match.group(1)
-        else:
-            due_date = "9999-12-31"
+        due_date = due_match.group(1) if due_match else None
+
+        urgency = compute_urgency(priority, due_date, today)
 
         tasks.append({
             'line': line,
             'priority': priority,
-            'priority_num': priority_num,
             'due_date': due_date,
-            'desc': desc
+            'desc': desc,
+            'urgency': urgency
         })
 
-    # Top 3 by priority (A > B > C > ...)
-    top_priority = sorted(tasks, key=lambda x: x['priority_num'])[:3]
+    tasks.sort(key=lambda x: x['urgency'], reverse=True)
 
-    # Top 3 by due date (earliest first)
-    top_duedate = sorted(tasks, key=lambda x: x['due_date'])[:3]
+    return tasks[:10]
 
-    # Combine and deduplicate
-    seen = set()
-    top_6 = []
-    for task in top_priority + top_duedate:
-        task_id = task['line']
-        if task_id not in seen:
-            seen.add(task_id)
-            top_6.append(task)
-
-    return top_6[:6]
-
-def format_output(top_6):
-    """Format tasks as markdown list."""
-    output = ["📋 Top 6 Todos to Focus On\n"]
-    for i, task in enumerate(top_6, 1):
-        priority_str = f"**({task['priority']})**" if task['priority'] else ""
-        due_str = f" — due: {task['due_date']}" if task['due_date'] != "9999-12-31" else ""
-        output.append(f"{i}. {priority_str} {task['desc']}{due_str}")
+def format_output(tasks, today):
+    output = [f"Top {len(tasks)} Todos (scored {today})\n"]
+    output.append(f"| # | Priority | Due Date | Score | Description |")
+    output.append(f"|---|----------|----------|-------|-------------|")
+    for i, task in enumerate(tasks, 1):
+        priority = task['priority'] if task['priority'] else "—"
+        due = task['due_date'] if task['due_date'] else "—"
+        desc = task['desc']
+        output.append(f"| {i} | {priority} | {due} | {task['urgency']} | {desc} |")
     return "\n".join(output)
 
 if __name__ == "__main__":
@@ -91,5 +101,5 @@ if __name__ == "__main__":
         print(f"Error: File not found: {todo_file}", file=sys.stderr)
         sys.exit(1)
 
-    top_6 = get_top_todos(todo_file)
-    print(format_output(top_6))
+    tasks = get_top_todos(todo_file)
+    print(format_output(tasks, date.today()))

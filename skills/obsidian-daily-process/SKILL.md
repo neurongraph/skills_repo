@@ -9,7 +9,7 @@ This skill orchestrates the full Obsidian vault processing pipeline: audio trans
 
 ## Environment Setup
 
-This workflow requires environment variables from `.env`: `ASR_CLI`, `MODEL_PATH`, `AUDIO_TEMP_DIR`, `IDEAS_INBOX`
+This workflow requires environment variables from `.env`: `ASR_CLI`, `MODEL_PATH`, `AUDIO_TEMP_DIR`, `IDEAS_INBOX`, `TODO_PATH`, and `OBSIDIAN_VAULT`.
 
 If variables are undefined, prefix bash commands with:
 ```bash
@@ -94,17 +94,17 @@ A transcript matches the first rule that fits — so a note that opens with a da
 If multiple transcripts land on the same date, each gets its own `## Voice Memo` section.
 
 **Idea:**
-- The `$IDEAS_INBOX` variable points to a folder or directory where idea files should be stored (e.g., `KB_2/01. Ideas/`).
-- If `$IDEAS_INBOX` is set, create a new `.md` file in that directory with a filename based on the first few words of the idea (e.g., `New product feature.md`).
+- Check the `.env` file for the `IDEAS_INBOX` variable. This points to a folder or directory where idea files should be stored (e.g., `KB_2/01. Ideas/`).
+- If `IDEAS_INBOX` is set, create a new `.md` file in that directory with a filename based on the first few words of the idea (e.g., `New product feature.md`).
 - Add the `#ideas` tag at the end of the file and include the full transcript content.
-- If `$IDEAS_INBOX` is not set, ask the user where ideas should be filed in their vault and confirm before filing.
+- If `IDEAS_INBOX` is not set, ask the user where ideas should be filed in their vault and confirm before filing.
 
 **Todo:**
-- Use the `obsidian-todotxt` skill
+- Use the `obsidian-todotxt` skill to locate the todo file. It will check for `./obsidian/plugins/obsidian-todotxt/data.json` and extract the `todoPath` value.
 - Pass the transcript content to `obsidian-todotxt` to append it as a new task at the top of the inbox (using the quick-entry inbox workflow).
-- After writing, call `obsidian-todotxt` to fetch the top 6 todos (3 by priority, 3 by due date) and display them as a markdown list. These are the tasks the user should focus on next.
+- After writing, call `obsidian-todotxt` to fetch the top 10 todos (ranked by composite urgency score) and display them as a table. These are the tasks the user should focus on next.
 
-Tell the user the type assigned to each transcript, where it was filed, and the top 6 todos to focus on.
+Tell the user the type assigned to each transcript, where it was filed, and the top 10 todos to focus on.
 
 ## Step 5: Wiki Update Pipeline
 

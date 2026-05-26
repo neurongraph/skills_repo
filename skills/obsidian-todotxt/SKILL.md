@@ -110,20 +110,25 @@ To find the todo.txt file path in an Obsidian vault:
 }
 ```
 
-### F. Fetching Top 6 Todos (By Priority and Due Date)
-To surface the most important tasks, fetch and return 6 uncompleted tasks: the top 3 by priority and the top 3 by due date.
+### F. Fetching Top 10 Todos (Composite Urgency Score)
+To surface the most important tasks, fetch and return the top 10 uncompleted tasks ranked by composite urgency.
 
 **Logic**:
-1. Parse all task lines from the todo file (skip completed tasks with `x ` prefix and skip headers/dividers).
-2. **Top 3 by Priority**: Sort uncompleted tasks by priority (A > B > C > D > ... > No Priority). Take the first 3 tasks.
-3. **Top 3 by Due Date**: Sort uncompleted tasks by due date in ascending order (earliest first; tasks without a due date go to the end). Take the first 3 tasks.
-4. Combine these sets (removing duplicates if a task appears in both lists) and return them as a markdown list with task description, priority (if any), and due date (if any).
+1. Parse all task lines from the todo file (skip completed tasks with `x ` prefix, skip headers/dividers, skip pure-URL lines).
+2. Compute a **composite urgency score** for each task:
+   - **Priority score**: A=26, B=25, C=24, ..., Z=1, none=0
+   - **Proximity score**: if overdue, `days_overdue × 2` (max 50); if within 30 days, `30 - days_until`; otherwise 0
+   - **Urgency = priority_score × 3 + proximity_score**
+3. Sort tasks by urgency descending.
+4. Return the top 10.
 
-**Output Format** (as markdown list):
-```markdown
-- **(A)** Task description +project @context due:2026-05-28
-- Task description without priority +project @context due:2026-05-30
-- **(B)** Another task description due:2026-06-02
+**Output Format** (as table with Priority, Due Date, Score, Description):
+
+```bash
+| # | Priority | Due Date | Score | Description |
+|---|----------|----------|-------|-------------|
+| 1 | A | 2026-05-26 | 108 | Work on the various threads... |
+| 2 | — | 2026-04-30 | 50 | Financials for Q1 2026... |
 ```
 
 **Helper Script Reference**:
@@ -140,7 +145,6 @@ python3 .claude/skills/obsidian-todotxt/references/get_top_todos.py "$TODO_PATH"
 
 This script:
 - Parses uncompleted tasks (skips `x ` prefixed tasks)
-- Sorts by priority (A > B > C > ... > no priority)
-- Sorts by due date (earliest first)
-- Combines and deduplicates to return top 6
-- Formats output as a prioritized markdown list
+- Computes composite urgency score for each task
+- Returns top 10 sorted by urgency descending
+- Formats output as a table with Priority, Due Date, Score, and Description
