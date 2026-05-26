@@ -67,16 +67,17 @@ A transcript matches the first rule that fits — so a note that opens with a da
 If multiple transcripts land on the same date, each gets its own `## Voice Memo` section.
 
 **Idea:**
-- *(Placeholder — idea filing location not yet configured.)*
-- Ask the user where ideas should be filed in their vault (e.g. a specific note, a folder, a daily note section). Once confirmed, append the transcript there with an `## Idea` heading.
-- Note the location for next time so the user doesn't have to specify it again.
+- Check the `.env` file for the `IDEAS_INBOX` variable. This points to a folder or directory where idea files should be stored (e.g., `KB_2/01. Ideas/`).
+- If `IDEAS_INBOX` is set, create a new `.md` file in that directory with a filename based on the first few words of the idea (e.g., `New product feature.md`).
+- Add the `#ideas` tag at the end of the file and include the full transcript content.
+- If `IDEAS_INBOX` is not set, ask the user where ideas should be filed in their vault and confirm before filing.
 
 **Todo:**
-- *(Placeholder — todo/task file location not yet configured.)*
-- Ask the user where todos should be filed in their vault (e.g. a `Tasks.md` file, a specific folder, a daily note section). Once confirmed, append the transcript there with a `## Captured Task` heading.
-- Note the location for next time so the user doesn't have to specify it again.
+- Use the `obsidian-todotxt` skill to locate the todo file. It will check for `./obsidian/plugins/obsidian-todotxt/data.json` and extract the `todoPath` value.
+- Pass the transcript content to `obsidian-todotxt` to append it as a new task at the top of the inbox (using the quick-entry inbox workflow).
+- After writing, call `obsidian-todotxt` to fetch the top 6 todos (3 by priority, 3 by due date) and display them as a markdown list. These are the tasks the user should focus on next.
 
-Tell the user the type assigned to each transcript and where it was filed (or where it will be filed once they confirm the location).
+Tell the user the type assigned to each transcript, where it was filed, and the top 6 todos to focus on.
 
 ## Step 5: Wiki Update Pipeline
 

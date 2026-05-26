@@ -93,3 +93,35 @@ If asked to reorganize or sort the file:
    - `## @context` headings.
    - `### +project` headings under each context.
    - Tasks printed on new lines under their subheadings.
+
+### E. Locating the Todo File Path
+To find the todo.txt file path in an Obsidian vault:
+1. Check if the file `./obsidian/plugins/obsidian-todotxt/data.json` exists relative to the vault root.
+2. If it exists, parse it as JSON and extract the `todoPath` value (e.g., `"KB_2/00. Inbox/02. Tasks/todo.md"`).
+3. Resolve this path relative to the vault root to get the absolute file path.
+4. If the file does not exist, ask the user where the todo.txt file is located in their vault.
+
+**Example data.json**:
+```json
+{
+  "todoPath": "KB_2/00. Inbox/02. Tasks/todo.md",
+  "additionalPaths": "",
+  "archivePath": "KB_2/00. Inbox/02. Tasks/done.md"
+}
+```
+
+### F. Fetching Top 6 Todos (By Priority and Due Date)
+To surface the most important tasks, fetch and return 6 uncompleted tasks: the top 3 by priority and the top 3 by due date.
+
+**Logic**:
+1. Parse all task lines from the todo file (skip completed tasks with `x ` prefix and skip headers/dividers).
+2. **Top 3 by Priority**: Sort uncompleted tasks by priority (A > B > C > D > ... > No Priority). Take the first 3 tasks.
+3. **Top 3 by Due Date**: Sort uncompleted tasks by due date in ascending order (earliest first; tasks without a due date go to the end). Take the first 3 tasks.
+4. Combine these sets (removing duplicates if a task appears in both lists) and return them as a markdown list with task description, priority (if any), and due date (if any).
+
+**Output Format** (as markdown list):
+```markdown
+- **(A)** Task description +project @context due:2026-05-28
+- Task description without priority +project @context due:2026-05-30
+- **(B)** Another task description due:2026-06-02
+```
