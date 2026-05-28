@@ -9,7 +9,7 @@ This skill orchestrates the full Obsidian vault processing pipeline: audio trans
 
 ## Environment Setup
 
-This workflow requires environment variables from `.env`: `ASR_CLI`, `MODEL_PATH`, `AUDIO_TEMP_DIR`, `IDEAS_INBOX`, `TODO_PATH`, and `OBSIDIAN_VAULT`.
+This workflow requires environment variables from `.env`: `ASR_CLI`, `MODEL_PATH`, `AUDIO_TEMP_DIR`, `IDEAS_INBOX`.
 
 If variables are undefined, prefix bash commands with:
 ```bash
@@ -48,7 +48,7 @@ Read `<vault>/.obsidian/daily-notes.json` to find:
 
 If `daily-notes.json` does not exist, use the defaults and continue.
 
-If a template file is specified, read it now — you'll need it when creating a new daily note.
+If a template file is specified, read it now — you'll need it when creating a new daily note. Note that the path can contain spaces and You might have to add a .md at the end of the path to find the file.
 
 ## Step 4: Classify and File Each Transcript
 

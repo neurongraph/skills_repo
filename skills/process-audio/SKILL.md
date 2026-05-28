@@ -9,18 +9,51 @@ description: Transcribes audio files (voice memos, recordings, meetings) into te
 
 This skill uses [qwen3_asr_rs](https://github.com/second-state/qwen3_asr_rs) for transcription and `ffmpeg` for audio format conversion.
 
-Check whether these three environment variables are set in the current shell. If not, read the `.env` file in the project root (`cat .env`) and look for them there:
+### Load environment variables
+
+If the required variables are not already set in the shell, load them from `.env` in the current working directory:
+
+```bash
+set -a; source .env; set +a
+```
+
+The required variables are:
 
 - `ASR_CLI` — path to the directory containing the `asr` executable (e.g. `~/.local/bin`)
 - `MODEL_PATH` — full path to the Qwen3 ASR model file used for transcription
 - `AUDIO_TEMP_DIR` — base directory for audio processing; inputs, converted WAVs, and transcripts all live under here
 
-If any variable is missing, stop here and tell the user what's missing. Provide these pointers:
+### Validate variables and paths
+
+After loading, check each of the following. Treat any failure the same as a missing variable — stop and tell the user exactly what is wrong:
+
+1. **`ASR_CLI` is set** — the variable must have a value.
+2. **`$ASR_CLI/asr` exists** — even if `ASR_CLI` is set, verify the executable is actually present:
+   ```bash
+   [ -x "$ASR_CLI/asr" ] || echo "MISSING: $ASR_CLI/asr not found or not executable"
+   ```
+3. **`MODEL_PATH` is set** — the variable must have a value.
+4. **`AUDIO_TEMP_DIR` is set** — the variable must have a value.
+
+If any check fails, stop here and tell the user what is missing. Provide these pointers:
 - **Installing qwen3_asr_rs**: `curl -sSf https://raw.githubusercontent.com/second-state/qwen3_asr_rs/main/install.sh | bash`
 - **Getting a model**: follow the [qwen3_asr_rs documentation](https://github.com/second-state/qwen3_asr_rs) to download the Qwen3 ASR model file, then set `MODEL_PATH` to its full path
-- **Setting env vars**: export them in the shell or add them to a `.env` file in the project root
+- **Setting env vars**: export them in the shell or add them to a `.env` file in the current directory
 
-Do not continue to Step 2 until all three variables are confirmed.
+### Check for ffmpeg
+
+```bash
+command -v ffmpeg
+```
+
+If `ffmpeg` is not found, stop and tell the user it is required. Install instructions by platform:
+
+- **macOS (Homebrew)**: `brew install ffmpeg`
+- **Ubuntu/Debian**: `sudo apt install ffmpeg`
+- **Fedora/RHEL**: `sudo dnf install ffmpeg`
+- **Windows (winget)**: `winget install Gyan.FFmpeg`
+
+Do not continue to Step 2 until all variables, paths, and tools are confirmed.
 
 ## Step 2: Transcribe Audio Files
 
