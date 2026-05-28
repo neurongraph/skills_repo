@@ -1,6 +1,6 @@
 ---
 name: obsidian-todotxt
-description: Read, parse, write, sort, and complete tasks in Obsidian vaults using our custom Todo.txt format and its extended `complete:yyyy-mm-dd` tag and hierarchical grouping spec. Equip coding agents to cleanly add, modify, and check off tasks.
+description: Read, parse, write, sort, and complete tasks in Obsidian vaults using our custom Todo.txt format. Also surfaces top-k todos by urgency and serves as the entry point for actioning a todo via the obsidian-todo-action skill.
 ---
 
 # Obsidian Todo.txt Agent Skill
@@ -96,15 +96,17 @@ If asked to reorganize or sort the file:
 
 ### E. Locating the Todo File Path
 To find the todo.txt file path in an Obsidian vault:
-1. Check if the file `./obsidian/plugins/obsidian-todotxt/data.json` exists relative to the vault root.
-2. If it exists, parse it as JSON and extract the `todoPath` value (e.g., `"KB_2/00. Inbox/02. Tasks/todo.md"`).
-3. Resolve this path relative to the vault root to get the absolute file path.
-4. If the file does not exist, ask the user where the todo.txt file is located in their vault.
+1. Check if the file `.obsidian/plugins/obsidian-todotxt/data.json` exists relative to the vault root.
+2. If it exists, parse it as JSON and extract:
+   - `todoPath` (e.g., `"KB_2/00. Inbox/02. Tasks/todo.md"`) — resolve relative to the vault root.
+   - `projectsPath` (e.g., `"KB_2/Projects"`) — resolve relative to the vault root. If this key is absent, ask the user where their projects folder is located in the vault.
+3. If `data.json` does not exist, ask the user where the todo.txt file and projects folder are located in their vault.
 
 **Example data.json**:
 ```json
 {
   "todoPath": "KB_2/00. Inbox/02. Tasks/todo.md",
+  "projectsPath": "KB_2/Projects",
   "additionalPaths": "",
   "archivePath": "KB_2/00. Inbox/02. Tasks/done.md"
 }
@@ -148,3 +150,14 @@ This script:
 - Computes composite urgency score for each task
 - Returns top k sorted by urgency descending (default k=10)
 - Formats output as a table with Priority, Due Date, Score, and Description
+
+### G. Action a Todo (Entry Point for obsidian-todo-action)
+
+Workflow G builds on Workflows E and F — it does not repeat their steps. Before running Workflow G, ensure:
+- `todoPath` and `projectsPath` are known (Workflow E)
+- The top-k ranked table has already been displayed to the user (Workflow F)
+
+**Steps:**
+1. Ask the user: *"Which todo do you want to work on?"* (referencing the numbered table displayed by Workflow F above)
+2. User picks one by number
+3. Note the full raw todo line, `todoPath`, and `projectsPath`, then invoke the `obsidian-todo-action` skill passing these three values as context for the session
