@@ -100,11 +100,10 @@ If multiple transcripts land on the same date, each gets its own `## Voice Memo`
 - If `IDEAS_INBOX` is not set, ask the user where ideas should be filed in their vault and confirm before filing.
 
 **Todo:**
-- Use the `obsidian-todotxt` skill to locate the todo file. It will check for `./obsidian/plugins/obsidian-todotxt/data.json` and extract the `todoPath` value.
-- Pass the transcript content to `obsidian-todotxt` to append it as a new task at the top of the inbox (using the quick-entry inbox workflow).
-- After writing, call `obsidian-todotxt` to fetch the top 10 todos (ranked by composite urgency score) and display them as a table. These are the tasks the user should focus on next.
+- Use `obsidian-todotxt` **Workflow E** to locate the todo file (session cache first, then `data.json`).
+- Use `obsidian-todotxt` **Workflow A** to append the transcript as a new task at the top of the inbox.
 
-Tell the user the type assigned to each transcript, where it was filed, and the top 10 todos to focus on.
+Tell the user the type assigned to each transcript and where it was filed.
 
 ## Step 5: Wiki Update Pipeline
 
@@ -126,3 +125,9 @@ List all temporary files that were created during processing, grouped by directo
 - Transcript text files in `$AUDIO_TEMP_DIR/transcripts/`
 
 Ask the user whether to delete them. Delete only on explicit confirmation, and only after all vault notes have been successfully written.
+
+## Step 8: Todo Review and Action
+
+Use `obsidian-todotxt` **Workflow F** to fetch and display the top 10 uncompleted todos ranked by composite urgency score. This surfaces the highest-priority work — including any tasks just added from this session's transcripts.
+
+Then use `obsidian-todotxt` **Workflow G** to ask the user if they want to action one of the todos. If yes, invoke `obsidian-todo-action` for the selected task.
