@@ -29,23 +29,41 @@ skills/obsidian-todo-action/
 
 ---
 
-## Part 1: obsidian-todotxt — Workflow G (Entry Point)
+## Part 1: obsidian-todotxt — Changes Required
 
-Add the following workflow to the existing `obsidian-todotxt` SKILL.md:
+### Update Workflow E: Locating the Todo File Path
 
-### Workflow G: Action a Todo
+Workflow E currently extracts only `todoPath` from `data.json`. It must also extract `projectsPath`:
 
-1. Read `<vault>/.obsidian/plugins/obsidian-todotxt/data.json` to get `todoPath` and `projectsPath`
-2. Run `get_top_todos.py <todoPath> [k]` (default k=10) and display the ranked table
-3. Ask the user: *"Which todo do you want to work on?"*
-4. User picks one by number
-5. Hand off the selected todo line, `todoPath`, and `projectsPath` to the `obsidian-todo-action` skill
+```json
+{
+  "todoPath": "KB_2/00. Inbox/02. Tasks/todo.md",
+  "projectsPath": "KB_2/Projects",
+  "additionalPaths": "",
+  "archivePath": "KB_2/00. Inbox/02. Tasks/done.md"
+}
+```
+
+If `projectsPath` is missing from `data.json`, ask the user where their projects folder is located in the vault.
+
+### Add Workflow G: Action a Todo
+
+Workflow G builds on Workflows E and F — it does not repeat their steps. It assumes:
+- `todoPath` and `projectsPath` are already known (from Workflow E)
+- The top-k ranked table has already been displayed (from Workflow F)
+
+Steps:
+1. Ask the user: *"Which todo do you want to work on?"* (referencing the table above)
+2. User picks one by number
+3. Hand off the selected todo line, `todoPath`, and `projectsPath` to the `obsidian-todo-action` skill
 
 ---
 
 ## Part 2: obsidian-todo-action — Execution Layer
 
 ### 2.1 Setup
+
+Receives from `obsidian-todotxt` Workflow G: the selected todo line, `todoPath`, and `projectsPath` — does not re-read `data.json`.
 
 - Parse the selected todo line: extract `@context`, `+project`, priority, due date, description
 - Resolve project folder: `<projectsPath>/<context>/<project>/`
