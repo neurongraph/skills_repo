@@ -9,7 +9,7 @@ Manage Obsidian Tasks using natural language with task creation, modification, c
 
 > **Dependency**: This skill requires the `obsidian-cli` skill for all `obsidian` command operations.
 >
-> **Scripts**: `task_utils.py`, `project_utils.py`, and `filter_tasks.py` live in the `scripts/` directory alongside this `SKILL.md`. Use their absolute paths when running them.
+> **Scripts**: `task_utils.py`, `project_utils.py`, and `filter_tasks.py` live in the `scripts/` directory alongside this `SKILL.md`. Before running any script, use the Glob tool with pattern `**/obsidian-tasks/SKILL.md` to locate this skill. Take the dirname of the result as `OBSIDIAN_TASKS_DIR`. All scripts are then at `$OBSIDIAN_TASKS_DIR/scripts/`.
 
 ## Task Syntax Reference
 
@@ -90,44 +90,42 @@ The `obsidian tasks` CLI has **no built-in filters** for due date, priority, or 
 > **Note**: The `obsidian` CLI may emit warning/info lines (e.g. "Loading updated app package...") to stdout before the JSON payload. `filter_tasks.py` handles this automatically by scanning for the first `[` in stdin.
 
 ```bash
-# Replace <scripts> with the absolute path to the scripts/ directory
-
 # Tasks due today
-obsidian tasks todo format=json | python3 <scripts>/filter_tasks.py --today
+obsidian tasks todo format=json | python3 "$OBSIDIAN_TASKS_DIR/scripts/filter_tasks.py" --today
 
 # Overdue tasks
-obsidian tasks todo format=json | python3 <scripts>/filter_tasks.py --overdue
+obsidian tasks todo format=json | python3 "$OBSIDIAN_TASKS_DIR/scripts/filter_tasks.py" --overdue
 
 # Tasks with no due date
-obsidian tasks todo format=json | python3 <scripts>/filter_tasks.py --no-due
+obsidian tasks todo format=json | python3 "$OBSIDIAN_TASKS_DIR/scripts/filter_tasks.py" --no-due
 
 # Due within 7 days (or specify N days)
-obsidian tasks todo format=json | python3 <scripts>/filter_tasks.py --due-soon 7
+obsidian tasks todo format=json | python3 "$OBSIDIAN_TASKS_DIR/scripts/filter_tasks.py" --due-soon 7
 
 # By priority level: highest | high | normal | low | lowest
-obsidian tasks todo format=json | python3 <scripts>/filter_tasks.py --priority high
+obsidian tasks todo format=json | python3 "$OBSIDIAN_TASKS_DIR/scripts/filter_tasks.py" --priority high
 
 # Urgent: high/highest priority + anything overdue or due today, sorted by urgency
-obsidian tasks todo format=json | python3 <scripts>/filter_tasks.py --urgent
+obsidian tasks todo format=json | python3 "$OBSIDIAN_TASKS_DIR/scripts/filter_tasks.py" --urgent
 
 # All incomplete tasks ranked by urgency score (default when no filter given)
-obsidian tasks todo format=json | python3 <scripts>/filter_tasks.py --next-action
+obsidian tasks todo format=json | python3 "$OBSIDIAN_TASKS_DIR/scripts/filter_tasks.py" --next-action
 
 # Recurring tasks
-obsidian tasks todo format=json | python3 <scripts>/filter_tasks.py --recurring
+obsidian tasks todo format=json | python3 "$OBSIDIAN_TASKS_DIR/scripts/filter_tasks.py" --recurring
 ```
 
 For project-specific queries (pass all tasks, not just `todo`, for summary):
 
 ```bash
 # Open tasks for one project, urgency-sorted
-obsidian tasks todo format=json | python3 <scripts>/filter_tasks.py --project "Project Alpha"
+obsidian tasks todo format=json | python3 "$OBSIDIAN_TASKS_DIR/scripts/filter_tasks.py" --project "Project Alpha"
 
 # List all project names found in tasks
-obsidian tasks format=json | python3 <scripts>/filter_tasks.py --projects
+obsidian tasks format=json | python3 "$OBSIDIAN_TASKS_DIR/scripts/filter_tasks.py" --projects
 
 # Project summary table: open · done · overdue per project
-obsidian tasks format=json | python3 <scripts>/filter_tasks.py --project-summary
+obsidian tasks format=json | python3 "$OBSIDIAN_TASKS_DIR/scripts/filter_tasks.py" --project-summary
 ```
 
 You can also search for tasks containing specific text or emoji using `obsidian search`:
@@ -191,13 +189,13 @@ Projects are identified by `#Project/Name` tags in task descriptions. There is n
 
 ```bash
 # List all project names
-obsidian tasks format=json | python3 <scripts>/filter_tasks.py --projects
+obsidian tasks format=json | python3 "$OBSIDIAN_TASKS_DIR/scripts/filter_tasks.py" --projects
 
 # Summary table (open / done / overdue per project)
-obsidian tasks format=json | python3 <scripts>/filter_tasks.py --project-summary
+obsidian tasks format=json | python3 "$OBSIDIAN_TASKS_DIR/scripts/filter_tasks.py" --project-summary
 
 # Open tasks for one project, sorted by urgency
-obsidian tasks todo format=json | python3 <scripts>/filter_tasks.py --project "Project/Alpha"
+obsidian tasks todo format=json | python3 "$OBSIDIAN_TASKS_DIR/scripts/filter_tasks.py" --project "Project/Alpha"
 
 # All tasks for a project (includes completed)
 obsidian search query="#Project/Alpha"
@@ -211,7 +209,7 @@ obsidian search query="#Project/Alpha"
    - Run: `obsidian append file="Tasks" content="- [ ] Review document #Project/Alpha 📅 2026-03-22"`
 
 2. **Search**: User asks "Show me my urgent next actions"
-   - Run: `obsidian tasks todo format=json | python3 <scripts>/filter_tasks.py --urgent`
+   - Run: `obsidian tasks todo format=json | python3 "$OBSIDIAN_TASKS_DIR/scripts/filter_tasks.py" --urgent`
    - Display results
 
 3. **Modify**: User asks "That task should be due on Friday instead"
@@ -229,7 +227,7 @@ obsidian search query="#Project/Alpha"
 
 - **Projects use tags, not wikilinks**: Always use `#Project/Name` format for project association — e.g. `#Project/Frontend`, `#Project/Alpha`. This enables Task Genius plugin views.
 - **Preserve existing metadata**: When updating tasks, maintain all existing emoji properties unless specifically changed
-- **Natural language dates**: Use `parse_natural_date()` from `task_utils.py` to convert "tomorrow", "next Friday", etc. to ISO dates
+- **Natural language dates**: Convert "tomorrow", "next Friday", etc. to ISO dates inline (see `task_utils.py` for the reference logic)
 - **Subtask linking**: Use section wikilinks to show task hierarchy: `[[Parent Task#Subtask]]`
 - **Project filtering requires Python**: The `obsidian tasks` CLI has no project/date/priority filters — always use `filter_tasks.py` for these
 

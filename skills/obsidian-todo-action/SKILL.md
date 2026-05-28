@@ -13,6 +13,9 @@ Actions a single todo from the user's Obsidian vault in one focused session. Rea
 
 ## 1. Setup
 
+**Resolve the skill directory** (once per session, before running any helper script):
+Use the Glob tool with pattern `**/obsidian-todo-action/SKILL.md` to locate this skill. Take the dirname of the result as `OBSIDIAN_TODO_ACTION_DIR`. All scripts are at `$OBSIDIAN_TODO_ACTION_DIR/scripts/`.
+
 **Resolve paths from the session file:**
 ```bash
 if [ -f /tmp/obsidian_todo_session.env ]; then
@@ -136,19 +139,15 @@ If an email was confirmed:
    >
    > Look good, or would you like to adjust anything before I write the file?
 
-2. After the user confirms or adjusts, run `create_emltpl_file()` from `references/create_outlook_email_draft.py`:
+2. After the user confirms or adjusts, run `create_outlook_email_draft.py` from `$OBSIDIAN_TODO_ACTION_DIR/scripts/`:
 
-```python
-from references.create_outlook_email_draft import create_emltpl_file
-
-create_emltpl_file(
-    from_addr="",          # leave blank — Outlook fills from default account
-    to_addr="recipient@example.com",
-    cc_addr="",            # omit if no CC
-    subject="confirmed subject",
-    body="confirmed body text",
-    output_filename="/absolute/path/to/project/YYYY-MM-DD-<slug>-email.emltpl"
-)
+```bash
+python3 "$OBSIDIAN_TODO_ACTION_DIR/scripts/create_outlook_email_draft.py" \
+  --to "recipient@example.com" \
+  --subject "confirmed subject" \
+  --body "confirmed body text" \
+  --output "/absolute/path/to/project/YYYY-MM-DD-<slug>-email.emltpl"
+# Add --from "addr" and/or --cc "addr" only when needed
 ```
 
 The `.emltpl` file opens in Outlook for Mac as a fully editable draft when double-clicked.
@@ -165,30 +164,19 @@ If a calendar invite was confirmed:
 
 2. **Do not generate the file before receiving explicit user confirmation or an alternative.** Wait for the response.
 
-3. After confirming, run `create_ics_draft()` from `references/create_outlook_calendar_draft.py`:
+3. After confirming, run `create_outlook_calendar_draft.py` from `$OBSIDIAN_TODO_ACTION_DIR/scripts/`:
 
-```python
-import datetime
-from references.create_outlook_calendar_draft import create_ics_draft
-
-start_dt = datetime.datetime(YYYY, MM, DD, HH, MM)   # confirmed by user
-end_dt = start_dt + datetime.timedelta(hours=1)       # or user-specified duration
-
-# Build attendees list from the people collected in Section 3
-# Include only entries where an email address was provided
-attendees = [
-    {"name": "Name", "email": "email@example.com"},  # one dict per person with a known email
-]
-
-create_ics_draft(
-    summary="todo description",
-    description="brief agenda derived from context",
-    location="Microsoft Teams",    # ask user if they specify a different location
-    start_dt=start_dt,
-    end_dt=end_dt,
-    attendees=attendees,           # pass empty list [] if no emails were collected
-    output_filename="/absolute/path/to/project/YYYY-MM-DD-<slug>-invite.ics"
-)
+```bash
+python3 "$OBSIDIAN_TODO_ACTION_DIR/scripts/create_outlook_calendar_draft.py" \
+  --summary "todo description" \
+  --description "brief agenda derived from context" \
+  --location "Microsoft Teams" \
+  --start "YYYY-MM-DDTHH:MM" \
+  --end "YYYY-MM-DDTHH:MM" \
+  --attendee "Name:email@example.com" \
+  --output "/absolute/path/to/project/YYYY-MM-DD-<slug>-invite.ics"
+# Repeat --attendee for each person with a known email; omit entirely if no emails collected
+# --location defaults to "Microsoft Teams" if not specified
 ```
 
 The `.ics` file opens as an editable calendar event in Outlook for Mac when double-clicked.
@@ -267,12 +255,12 @@ All files saved to: <projectsPath>/<context>/<project>/
 
 ### create_outlook_email_draft.py
 
-Located at `references/create_outlook_email_draft.py`. Use `create_emltpl_file()` — creates a `.emltpl` file that Outlook for Mac opens as a fully editable draft.
+Located at `$OBSIDIAN_TODO_ACTION_DIR/scripts/create_outlook_email_draft.py`. Creates a `.emltpl` file that Outlook for Mac opens as a fully editable draft.
 
-Key parameters: `from_addr`, `to_addr`, `cc_addr`, `subject`, `body`, `output_filename` (absolute path).
+CLI flags: `--to` (required), `--subject` (required), `--body` (required), `--output` (required, absolute path), `--from` (optional), `--cc` (optional).
 
 ### create_outlook_calendar_draft.py
 
-Located at `references/create_outlook_calendar_draft.py`. Use `create_ics_draft()` — creates an `.ics` file without `ORGANIZER`/`METHOD` so Outlook opens it as a locally editable event.
+Located at `$OBSIDIAN_TODO_ACTION_DIR/scripts/create_outlook_calendar_draft.py`. Creates an `.ics` file without `ORGANIZER`/`METHOD` so Outlook opens it as a locally editable event.
 
-Key parameters: `summary`, `description`, `location`, `start_dt` (Python `datetime.datetime`), `end_dt` (Python `datetime.datetime`), `attendees` (list of `{"name": str, "email": str}` dicts — omit or pass `[]` if none), `output_filename` (absolute path).
+CLI flags: `--summary` (required), `--start` (required, `YYYY-MM-DDTHH:MM`), `--end` (required, `YYYY-MM-DDTHH:MM`), `--output` (required, absolute path), `--description` (optional), `--location` (optional, default: `Microsoft Teams`), `--attendee NAME:EMAIL` (optional, repeatable).

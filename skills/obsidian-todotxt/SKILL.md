@@ -173,15 +173,15 @@ To surface the most important tasks, fetch and return the top k uncompleted task
 ```
 
 **Helper Script Reference**:
-A reusable Python script is available at `references/get_top_todos.py` that implements this logic. Call it from the vault root:
+A reusable Python script is available at `scripts/get_top_todos.py` alongside this `SKILL.md`. Use the Glob tool with pattern `**/obsidian-todotxt/SKILL.md` to locate this skill. Take the dirname of the result as `OBSIDIAN_TODOTXT_DIR`, then call from the vault root:
 
 ```bash
-python3 .claude/skills/obsidian-todotxt/references/get_top_todos.py <path_to_todo_file> [k]
+python3 "$OBSIDIAN_TODOTXT_DIR/scripts/get_top_todos.py" <path_to_todo_file> [k]
 ```
 
 Or with environment variables:
 ```bash
-python3 .claude/skills/obsidian-todotxt/references/get_top_todos.py "$TODO_PATH" 5
+python3 "$OBSIDIAN_TODOTXT_DIR/scripts/get_top_todos.py" "$TODO_PATH" 5
 ```
 
 This script:
