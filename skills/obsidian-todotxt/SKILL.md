@@ -118,7 +118,7 @@ To surface the most important tasks, fetch and return the top k uncompleted task
 2. Compute a **composite urgency score** for each task:
    - **Priority score**: A=26, B=25, C=24, ..., Z=1, none=0
    - **Proximity score**: linear scale from 60 (overdue ≥30 days) to 0 (due ≥30 days away): `max(0, min(60, 30 - days_until))`
-   - **Urgency = priority_score × 3 + proximity_score**
+   - **Urgency = priority_score + proximity_score**
 3. Sort tasks by urgency descending.
 4. Return the top k.
 
