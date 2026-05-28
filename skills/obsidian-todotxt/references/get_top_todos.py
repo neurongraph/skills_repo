@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-Get top 6 todos from todo.txt file using composite urgency scoring.
+Get top k todos from todo.txt file using composite urgency scoring.
 Urgency = priority_score * 3 + proximity_score
 
 Priority score: A=26, B=25, ... Z=1, none=0
-Proximity score: overdue days*2 (max 50), or (30 - days_until) for tasks due within 30 days
+Proximity score: linear 60→0 from -30 days overdue to +30 days future (clamped)
 
 Usage:
-  python3 get_top_todos.py <path_to_todo_file>
+  python3 get_top_todos.py <path_to_todo_file> [k]
 """
 
 import re
@@ -25,12 +25,7 @@ def compute_urgency(priority, due_date, today):
     else:
         due = datetime.strptime(due_date, "%Y-%m-%d").date()
         days_until = (due - today).days
-        if days_until < 0:
-            proximity_score = min(50, abs(days_until) * 2)
-        elif days_until <= 30:
-            proximity_score = 30 - days_until
-        else:
-            proximity_score = 0
+        proximity_score = max(0, min(60, 30 - days_until))
 
     return priority_score * 3 + proximity_score
 
@@ -38,7 +33,7 @@ def is_pure_url(line):
     stripped = line.strip()
     return stripped.startswith("https://") and "@" not in stripped and "+" not in stripped and "due:" not in stripped
 
-def get_top_todos(todo_file_path):
+def get_top_todos(todo_file_path, k=10):
     today = date.today()
 
     with open(todo_file_path, "r") as f:
@@ -77,7 +72,7 @@ def get_top_todos(todo_file_path):
 
     tasks.sort(key=lambda x: x['urgency'], reverse=True)
 
-    return tasks[:10]
+    return tasks[:k]
 
 def format_output(tasks, today):
     output = [f"Top {len(tasks)} Todos (scored {today})\n"]
@@ -92,14 +87,15 @@ def format_output(tasks, today):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python3 get_top_todos.py <path_to_todo_file>")
+        print("Usage: python3 get_top_todos.py <path_to_todo_file> [k]")
         sys.exit(1)
 
     todo_file = sys.argv[1]
+    k = int(sys.argv[2]) if len(sys.argv) >= 3 else 10
 
     if not Path(todo_file).exists():
         print(f"Error: File not found: {todo_file}", file=sys.stderr)
         sys.exit(1)
 
-    tasks = get_top_todos(todo_file)
+    tasks = get_top_todos(todo_file, k)
     print(format_output(tasks, date.today()))

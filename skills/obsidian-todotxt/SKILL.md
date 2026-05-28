@@ -110,17 +110,17 @@ To find the todo.txt file path in an Obsidian vault:
 }
 ```
 
-### F. Fetching Top 10 Todos (Composite Urgency Score)
-To surface the most important tasks, fetch and return the top 10 uncompleted tasks ranked by composite urgency.
+### F. Fetching Top k Todos (Composite Urgency Score)
+To surface the most important tasks, fetch and return the top k uncompleted tasks ranked by composite urgency (default k=10).
 
 **Logic**:
 1. Parse all task lines from the todo file (skip completed tasks with `x ` prefix, skip headers/dividers, skip pure-URL lines).
 2. Compute a **composite urgency score** for each task:
    - **Priority score**: A=26, B=25, C=24, ..., Z=1, none=0
-   - **Proximity score**: if overdue, `days_overdue × 2` (max 50); if within 30 days, `30 - days_until`; otherwise 0
+   - **Proximity score**: linear scale from 60 (overdue ≥30 days) to 0 (due ≥30 days away): `max(0, min(60, 30 - days_until))`
    - **Urgency = priority_score × 3 + proximity_score**
 3. Sort tasks by urgency descending.
-4. Return the top 10.
+4. Return the top k.
 
 **Output Format** (as table with Priority, Due Date, Score, Description):
 
@@ -135,16 +135,16 @@ To surface the most important tasks, fetch and return the top 10 uncompleted tas
 A reusable Python script is available at `references/get_top_todos.py` that implements this logic. Call it from the vault root:
 
 ```bash
-python3 .claude/skills/obsidian-todotxt/references/get_top_todos.py <path_to_todo_file>
+python3 .claude/skills/obsidian-todotxt/references/get_top_todos.py <path_to_todo_file> [k]
 ```
 
 Or with environment variables:
 ```bash
-python3 .claude/skills/obsidian-todotxt/references/get_top_todos.py "$TODO_PATH"
+python3 .claude/skills/obsidian-todotxt/references/get_top_todos.py "$TODO_PATH" 5
 ```
 
 This script:
 - Parses uncompleted tasks (skips `x ` prefixed tasks)
 - Computes composite urgency score for each task
-- Returns top 10 sorted by urgency descending
+- Returns top k sorted by urgency descending (default k=10)
 - Formats output as a table with Priority, Due Date, Score, and Description
