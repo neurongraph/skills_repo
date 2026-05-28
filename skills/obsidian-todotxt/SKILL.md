@@ -96,11 +96,20 @@ If asked to reorganize or sort the file:
 
 ### E. Locating the Todo File Path
 To find the todo.txt file path in an Obsidian vault:
-1. Check if the file `.obsidian/plugins/obsidian-todotxt/data.json` exists relative to the vault root.
-2. If it exists, parse it as JSON and extract:
-   - `todoPath` (e.g., `"KB_2/00. Inbox/02. Tasks/todo.md"`) — resolve relative to the vault root.
-   - `projectsPath` (e.g., `"KB_2/Projects"`) — resolve relative to the vault root. If this key is absent, ask the user where their projects folder is located in the vault.
-3. If `data.json` does not exist, ask the user where the todo.txt file and projects folder are located in their vault.
+1. **Check for a cached session file first**: if `/tmp/obsidian_todo_session.env` exists, read `OBSIDIAN_TODO_PATH` and `OBSIDIAN_PROJECTS_PATH` from it and skip to step 4.
+2. Check if the file `.obsidian/plugins/obsidian-todotxt/data.json` exists relative to the vault root.
+3. If it exists, parse it as JSON and extract:
+   - `todoPath` (e.g., `"KB_2/00. Inbox/02. Tasks/todo.md"`) — resolve to an absolute path.
+   - `projectsPath` (e.g., `"KB_2/Projects"`) — resolve to an absolute path. If this key is absent, ask the user where their projects folder is located in the vault.
+   If `data.json` does not exist, ask the user for both paths.
+4. **Write the session file** so all subsequent workflows and skills can access the paths without re-reading `data.json`:
+```bash
+cat > /tmp/obsidian_todo_session.env << 'EOF'
+OBSIDIAN_TODO_PATH=/absolute/path/to/todo.md
+OBSIDIAN_PROJECTS_PATH=/absolute/path/to/projects
+EOF
+```
+Replace the placeholder values with the actual resolved absolute paths.
 
 **Example data.json**:
 ```json

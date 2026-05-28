@@ -7,13 +7,26 @@ description: Action a single Obsidian todo: reads project context and related ta
 
 Actions a single todo from the user's Obsidian vault in one focused session. Reads project context, decides adaptively what help is needed, generates artifacts (sub-tasks, email drafts, calendar invites, action notes), and updates the project folder.
 
-**Dependency**: This skill is invoked from `obsidian-todotxt` Workflow G. It receives the selected todo line, `todoPath`, and `projectsPath` — it does not re-read `data.json`.
+**Dependency**: This skill is invoked from `obsidian-todotxt` Workflow G. It receives the selected todo line and resolves `todoPath`/`projectsPath` from the session file written by Workflow E.
 
 ---
 
 ## 1. Setup
 
-Parse the received todo line using the `obsidian-todotxt` parsing rules to extract:
+**Resolve paths from the session file:**
+```bash
+if [ -f /tmp/obsidian_todo_session.env ]; then
+  source /tmp/obsidian_todo_session.env
+  # OBSIDIAN_TODO_PATH and OBSIDIAN_PROJECTS_PATH are now set
+else
+  # Fall back: read .obsidian/plugins/obsidian-todotxt/data.json
+  # and resolve todoPath + projectsPath as described in obsidian-todotxt Workflow E
+fi
+```
+
+Use `OBSIDIAN_TODO_PATH` as `todoPath` and `OBSIDIAN_PROJECTS_PATH` as `projectsPath` throughout this skill.
+
+**Parse the received todo line** using the `obsidian-todotxt` parsing rules to extract:
 - `description` — the task text (all tokens that are not metadata)
 - `context` — the `@context` value (or `No Context` if absent)
 - `project` — the `+project` value (or `No Project` if absent)
