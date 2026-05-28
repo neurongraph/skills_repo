@@ -12,6 +12,7 @@ def create_ics_draft(
     location: str = "Conference Room A / Microsoft Teams",
     start_dt: datetime.datetime = None,
     end_dt: datetime.datetime = None,
+    attendees: list = None,   # list of dicts: [{"name": "Alice", "email": "alice@example.com"}, ...]
     output_filename: str = "meeting_draft.ics"
 ) -> str:
     """
@@ -40,6 +41,16 @@ def create_ics_draft(
     escaped_summary = summary.replace("\n", " ")
     escaped_location = location.replace("\n", " ")
     
+    # Build ATTENDEE lines (RFC 5545)
+    attendee_lines = ""
+    if attendees:
+        for a in attendees:
+            name = a.get("name", "")
+            email = a.get("email", "")
+            if email:
+                cn_part = f"CN={name};" if name else ""
+                attendee_lines += f"ATTENDEE;{cn_part}RSVP=TRUE:mailto:{email}\r\n"
+
     # Construct the iCalendar content
     # Note: We omit ORGANIZER and METHOD:REQUEST to keep it fully editable
     ics_content = f"""BEGIN:VCALENDAR
@@ -54,7 +65,7 @@ DTEND:{dtend_str}
 SUMMARY:{escaped_summary}
 DESCRIPTION:{escaped_description}
 LOCATION:{escaped_location}
-END:VEVENT
+{attendee_lines}END:VEVENT
 END:VCALENDAR
 """
     

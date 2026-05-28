@@ -80,7 +80,7 @@ Synthesize all three context sources and present a single pre-filled assessment:
 > 1. [derived from context]
 > 2. [derived from context]
 >
-> **People to loop in:** [names and roles from project.md or sibling todos, or "none identified"]
+> **People to loop in:** [names and roles from project.md or sibling todos, or "none identified" — include email addresses if present in project.md or sibling todos; otherwise ask the user for emails before generating any invite or email artifact]
 >
 > **Suggested actions:**
 > - [ ] Draft email to [name] re: [topic]  *(or: No email needed — this appears to be async/solo work)*
@@ -96,7 +96,7 @@ Wait for the user to confirm or adjust. Then proceed to Section 4 using the conf
 
 Ask questions one at a time. Wait for a response before asking the next.
 
-1. **"Who needs to be involved in this task?"** — list names or say "just me"
+1. **"Who needs to be involved in this task?"** — list names (and email addresses if known), or say "just me". Parse the response into a list of `{name, email}` pairs (email may be blank if not provided). Carry this list through all subsequent artifact generation steps.
 2. **"Should I break this into sub-tasks? Here are 2–3 suggestions: [suggest based on description]. Confirm, adjust, or say 'no sub-tasks'."**
 3. *(Skip if solo/research — see heuristic below)* **"Should I draft an email to any of the people involved?"**
 4. *(Skip if solo/research)* **"Does this need a calendar invite?"**
@@ -174,12 +174,19 @@ from references.create_outlook_calendar_draft import create_ics_draft
 start_dt = datetime.datetime(YYYY, MM, DD, HH, MM)   # confirmed by user
 end_dt = start_dt + datetime.timedelta(hours=1)       # or user-specified duration
 
+# Build attendees list from the people collected in Section 3
+# Include only entries where an email address was provided
+attendees = [
+    {"name": "Name", "email": "email@example.com"},  # one dict per person with a known email
+]
+
 create_ics_draft(
     summary="todo description",
     description="brief agenda derived from context",
     location="Microsoft Teams",    # ask user if they specify a different location
     start_dt=start_dt,
     end_dt=end_dt,
+    attendees=attendees,           # pass empty list [] if no emails were collected
     output_filename="/absolute/path/to/project/YYYY-MM-DD-<slug>-invite.ics"
 )
 ```
@@ -268,4 +275,4 @@ Key parameters: `from_addr`, `to_addr`, `cc_addr`, `subject`, `body`, `output_fi
 
 Located at `references/create_outlook_calendar_draft.py`. Use `create_ics_draft()` — creates an `.ics` file without `ORGANIZER`/`METHOD` so Outlook opens it as a locally editable event.
 
-Key parameters: `summary`, `description`, `location`, `start_dt` (Python `datetime.datetime`), `end_dt` (Python `datetime.datetime`), `output_filename` (absolute path).
+Key parameters: `summary`, `description`, `location`, `start_dt` (Python `datetime.datetime`), `end_dt` (Python `datetime.datetime`), `attendees` (list of `{"name": str, "email": str}` dicts — omit or pass `[]` if none), `output_filename` (absolute path).

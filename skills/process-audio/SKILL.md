@@ -36,7 +36,9 @@ After loading, check each of the following. Treat any failure the same as a miss
 4. **`AUDIO_TEMP_DIR` is set** — the variable must have a value.
 
 If any check fails, stop here and tell the user what is missing. Provide these pointers:
-- **Installing qwen3_asr_rs**: `curl -sSf https://raw.githubusercontent.com/second-state/qwen3_asr_rs/main/install.sh | bash`
+- **Installing qwen3_asr_rs**: 
+  - `mkdir path_to_/qwen3_asr_rs`
+  - `curl -sSf https://raw.githubusercontent.com/second-state/qwen3_asr_rs/main/install.sh | bash`
 - **Getting a model**: follow the [qwen3_asr_rs documentation](https://github.com/second-state/qwen3_asr_rs) to download the Qwen3 ASR model file, then set `MODEL_PATH` to its full path
 - **Setting env vars**: export them in the shell or add them to a `.env` file in the current directory
 
