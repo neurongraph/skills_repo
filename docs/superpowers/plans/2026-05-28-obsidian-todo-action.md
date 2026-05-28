@@ -423,7 +423,17 @@ git commit -m "feat(obsidian-todo-action): create skill SKILL.md with full sessi
 - Move: `skills/obsidian-todotxt/references/create_outlook_email_draft.py` → `skills/obsidian-todo-action/references/create_outlook_email_draft.py`
 - Move: `skills/obsidian-todotxt/references/create_outlook_calendar_draft.py` → `skills/obsidian-todo-action/references/create_outlook_calendar_draft.py`
 
-- [ ] **Step 1: Move both scripts with git mv**
+- [ ] **Step 1: Track the scripts at their current location (they are untracked)**
+
+`git mv` only works on tracked files. Commit them at their current location first:
+
+```bash
+git add skills/obsidian-todotxt/references/create_outlook_email_draft.py \
+        skills/obsidian-todotxt/references/create_outlook_calendar_draft.py
+git commit -m "chore: track Outlook draft scripts before moving to obsidian-todo-action"
+```
+
+- [ ] **Step 2: Move both scripts with git mv**
 
 ```bash
 git mv skills/obsidian-todotxt/references/create_outlook_email_draft.py \
@@ -433,7 +443,7 @@ git mv skills/obsidian-todotxt/references/create_outlook_calendar_draft.py \
        skills/obsidian-todo-action/references/create_outlook_calendar_draft.py
 ```
 
-- [ ] **Step 2: Verify the moves**
+- [ ] **Step 3: Verify the moves**
 
 ```bash
 ls skills/obsidian-todotxt/references/
@@ -452,7 +462,7 @@ create_outlook_calendar_draft.py
 create_outlook_email_draft.py
 ```
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
 git add -A
