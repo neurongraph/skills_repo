@@ -64,6 +64,36 @@ When reading or modifying a vault's `todo.md` file, agents MUST follow these wor
 * **Action**: To add a new task, insert it at the very top of the file (within the 3 blank lines).
 * **Filing**: Do not worry about filing it under headings. When the user sorts their list via the Obsidian plugin, it will automatically parse the inbox tasks and file them into the correct sections below!
 
+**Natural Language Normalization** — before writing the task line, convert spoken/written shorthand into todo.txt tokens. All substitutions are case-insensitive and applied before the line is written.
+
+**Context & Project tokens:**
+- `"context is <name>"` → `@<name>` (remove the phrase, insert token)
+- `"for project <name>"` → `+<name>` (remove the phrase, insert token)
+- Within any extracted `<name>`, the word `underscore` (surrounded by spaces or at word boundaries) is replaced with `_`, then spaces are removed to form a single token.
+
+Examples:
+- `"Call dentist context is health"` → `Call dentist @health`
+- `"Finish report for project acme"` → `Finish report +acme`
+- `"context is health underscore personal"` → `@health_personal`
+- `"for project kb underscore work"` → `+kb_work`
+- `"context is work send invoice for project consulting"` → `send invoice @work +consulting`
+
+**Due date tokens:**
+Convert natural language date expressions to `due:YYYY-MM-DD`. Resolve relative to today's date.
+
+| Phrase | Resolves to |
+|---|---|
+| `"due today"` | `due:<today>` |
+| `"due tomorrow"` | `due:<today+1d>` |
+| `"due <weekday>"` / `"due next <weekday>"` | `due:<next occurrence of that weekday>` |
+| `"due in <n> days"` | `due:<today+nd>` |
+| `"due in <n> weeks"` | `due:<today+nw>` |
+| `"due next week"` | `due:<today+7d>` |
+| `"due next month"` | `due:<same day next month>` |
+| `"due <YYYY-MM-DD>"` | `due:<YYYY-MM-DD>` (pass through) |
+
+Example: `"Submit tax return due next friday context is finance"` → `Submit tax return due:2026-05-29 @finance`
+
 ### B. Completing a Task
 To check off a task on a specific line:
 1. Prepend `x ` to the beginning of the line.
