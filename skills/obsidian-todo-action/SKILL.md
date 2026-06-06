@@ -1,47 +1,30 @@
 ---
 name: obsidian-todo-action
 description: Action a single Obsidian todo: reads project context and related tasks, adaptively assesses what's needed (sub-tasks, email drafts, calendar invites), generates all artifacts into the project folder, and updates project.md — all in one session.
+compatibility: Paths (todoPath, projectsPath) must be provided by the caller. Scripts are in scripts/ relative to this skill.
 ---
 
 # Obsidian Todo Action Skill
 
 Actions a single todo from the user's Obsidian vault in one focused session. Reads project context, decides adaptively what help is needed, generates artifacts (sub-tasks, email drafts, calendar invites, action notes), and updates the project folder.
 
-**Dependency**: This skill is invoked from `obsidian-todotxt` Workflow G. It receives the selected todo line and resolves `todoPath`/`projectsPath` from the session file written by Workflow E.
+Paths (`todoPath`, `projectsPath`) must be provided by the caller. The skill now starts at Section 1 and handles todo selection, parsing, and project setup before proceeding to context gathering.
 
 ---
 
-## 1. Setup
+## 1. Todo Selection & Project Setup
 
-**Resolve the skill directory** (once per session, before running any helper script):
-Use the Glob tool with pattern `**/obsidian-todo-action/SKILL.md` to locate this skill. Take the dirname of the result as `OBSIDIAN_TODO_ACTION_DIR`. All scripts are at `$OBSIDIAN_TODO_ACTION_DIR/scripts/`.
+Ask the user: *"Which todo do you want to work on?"* (referencing the numbered urgency table already shown).
 
-**Resolve paths from the session file:**
-```bash
-if [ -f /tmp/obsidian_todo_session.env ]; then
-  source /tmp/obsidian_todo_session.env
-  # OBSIDIAN_TODO_PATH and OBSIDIAN_PROJECTS_PATH are now set
-else
-  # Fall back: read .obsidian/plugins/obsidian-todotxt/data.json
-  # and resolve todoPath + projectsPath as described in obsidian-todotxt Workflow E
-fi
-```
+**Parse the selected todo line** using the `obsidian-todotxt` parsing rules to extract:
+- `description`, `context`, `project`, `priority`, `due_date`
 
-Use `OBSIDIAN_TODO_PATH` as `todoPath` and `OBSIDIAN_PROJECTS_PATH` as `projectsPath` throughout this skill.
-
-**Parse the received todo line** using the `obsidian-todotxt` parsing rules to extract:
-- `description` — the task text (all tokens that are not metadata)
-- `context` — the `@context` value (or `No Context` if absent)
-- `project` — the `+project` value (or `No Project` if absent)
-- `priority` — letter A–Z, or none
-- `due_date` — `due:YYYY-MM-DD` value, or none
-
-Resolve the project folder:
+**Resolve the project folder:**
 ```
 <projectsPath>/<context>/<project>/
 ```
 
-If the folder does not exist, create it and write an empty `project.md` with this stub:
+If the folder does not exist, create it and write an empty `project.md`:
 ```markdown
 # <project>
 
@@ -54,15 +37,17 @@ If the folder does not exist, create it and write an empty `project.md` with thi
 ## Sessions
 ```
 
+Then continue to Section 2.
+
 ---
 
 ## 2. Context Gathering
 
 Read three sources before doing any analysis:
 
-1. **The selected todo line** — already parsed in Setup
-2. **Sibling todos** — all uncompleted lines in `todo.txt` (skip `x ` prefix lines, skip `---`, `## @`, `### +` lines) that share the same `@context` AND `+project` as the selected todo
-3. **`project.md`** — read the full file from the project folder
+1. **The selected todo line** — parsed in Section 1 above (description, context, project, priority, due_date)
+2. **Sibling todos** — all uncompleted lines in `todoPath` (skip `x ` prefix lines, skip `---`, `## @`, `### +` lines) that share the same `@context` AND `+project` as the selected todo
+3. **`project.md`** — read the full file from `<projectsPath>/<context>/<project>/project.md`
 
 **Context richness check**: Count meaningful words in `project.md` — words not part of lines that are only markdown headings (`##`), horizontal rules (`---`), or blank lines. If the count is ≥100, context is **rich** → use Mode B. Otherwise, context is **sparse** → use Mode A.
 
@@ -124,7 +109,7 @@ For each confirmed sub-task:
    - Inherit `+project` and `@context` from the parent todo
    - Priority: one letter lower than parent (A→B, B→C, … Y→Z). If parent has no priority or priority Z, omit priority.
    - Example: `(B) Review stakeholder list +ProjectName @ContextName`
-2. Insert at the top inbox of `todo.txt` per `obsidian-todotxt` Workflow A (within the 3 blank lines at the top of the file).
+2. Insert at the top inbox of `todoPath` per `obsidian-todotxt` Workflow A (within the 3 blank lines at the top of the file).
 
 ### 4b. Email Draft → .emltpl
 
@@ -139,10 +124,10 @@ If an email was confirmed:
    >
    > Look good, or would you like to adjust anything before I write the file?
 
-2. After the user confirms or adjusts, run `create_outlook_email_draft.py` from `$OBSIDIAN_TODO_ACTION_DIR/scripts/`:
+2. After the user confirms or adjusts, run the email draft script:
 
 ```bash
-python3 "$OBSIDIAN_TODO_ACTION_DIR/scripts/create_outlook_email_draft.py" \
+python3 "${OBSIDIAN_VAULT}/.claude/skills/obsidian-todo-action/scripts/create_outlook_email_draft.py" \
   --to "recipient@example.com" \
   --subject "confirmed subject" \
   --body "confirmed body text" \
@@ -164,10 +149,10 @@ If a calendar invite was confirmed:
 
 2. **Do not generate the file before receiving explicit user confirmation or an alternative.** Wait for the response.
 
-3. After confirming, run `create_outlook_calendar_draft.py` from `$OBSIDIAN_TODO_ACTION_DIR/scripts/`:
+3. After confirming, run the calendar draft script:
 
 ```bash
-python3 "$OBSIDIAN_TODO_ACTION_DIR/scripts/create_outlook_calendar_draft.py" \
+python3 "${OBSIDIAN_VAULT}/.claude/skills/obsidian-todo-action/scripts/create_outlook_calendar_draft.py" \
   --summary "todo description" \
   --description "brief agenda derived from context" \
   --location "Microsoft Teams" \
@@ -176,7 +161,6 @@ python3 "$OBSIDIAN_TODO_ACTION_DIR/scripts/create_outlook_calendar_draft.py" \
   --attendee "Name:email@example.com" \
   --output "/absolute/path/to/project/YYYY-MM-DD-<slug>-invite.ics"
 # Repeat --attendee for each person with a known email; omit entirely if no emails collected
-# --location defaults to "Microsoft Teams" if not specified
 ```
 
 The `.ics` file opens as an editable calendar event in Outlook for Mac when double-clicked.
@@ -248,19 +232,3 @@ Created:
 
 All files saved to: <projectsPath>/<context>/<project>/
 ```
-
----
-
-## 6. Reference Scripts
-
-### create_outlook_email_draft.py
-
-Located at `$OBSIDIAN_TODO_ACTION_DIR/scripts/create_outlook_email_draft.py`. Creates a `.emltpl` file that Outlook for Mac opens as a fully editable draft.
-
-CLI flags: `--to` (required), `--subject` (required), `--body` (required), `--output` (required, absolute path), `--from` (optional), `--cc` (optional).
-
-### create_outlook_calendar_draft.py
-
-Located at `$OBSIDIAN_TODO_ACTION_DIR/scripts/create_outlook_calendar_draft.py`. Creates an `.ics` file without `ORGANIZER`/`METHOD` so Outlook opens it as a locally editable event.
-
-CLI flags: `--summary` (required), `--start` (required, `YYYY-MM-DDTHH:MM`), `--end` (required, `YYYY-MM-DDTHH:MM`), `--output` (required, absolute path), `--description` (optional), `--location` (optional, default: `Microsoft Teams`), `--attendee NAME:EMAIL` (optional, repeatable).

@@ -1,11 +1,11 @@
 ---
 name: obsidian-todotxt
-description: Read, parse, write, sort, and complete tasks in Obsidian vaults using our custom Todo.txt format. Also surfaces top-k todos by urgency and serves as the entry point for actioning a todo via the obsidian-todo-action skill.
+description: Read, parse, write, sort, and complete tasks in Obsidian vaults using our custom Todo.txt format. Use when adding, completing, uncompleting, or restructuring todo.txt tasks. The invoking agent provides todoPath and projectsPath — this skill contains only the format spec and edit workflows.
 ---
 
 # Obsidian Todo.txt Agent Skill
 
-This skill guides AI coding agents on how to read, parse, write, sort, and complete tasks in an Obsidian vault conforming to our custom **Todo.txt spec and its extensions**.
+This skill guides agents on how to read, parse, write, sort, and complete tasks in an Obsidian vault conforming to our custom **Todo.txt spec and its extensions**.
 
 ---
 
@@ -57,7 +57,7 @@ When reconstructing a line from a task object, assemble the parts strictly in th
 
 ## 4. Agent Workflows for Vault Interactions
 
-When reading or modifying a vault's `todo.md` file, agents MUST follow these workflows to maintain list integrity:
+When reading or modifying a vault's `todo.md` file, agents MUST follow these workflows to maintain list integrity. The `todoPath` is provided by the invoking agent.
 
 ### A. Quick-Entry Inbox (Adding a New Task)
 * **Rule**: Keep **exactly 3 empty lines** at the very top of `todo.md`.
@@ -124,79 +124,12 @@ If asked to reorganize or sort the file:
    - `### +project` headings under each context.
    - Tasks printed on new lines under their subheadings.
 
-### E. Locating the Todo File Path
-To find the todo.txt file path in an Obsidian vault:
-1. **Check for a cached session file first**: if `/tmp/obsidian_todo_session.env` exists, read `OBSIDIAN_TODO_PATH` and `OBSIDIAN_PROJECTS_PATH` from it and skip to step 4.
-2. Check if the file `.obsidian/plugins/obsidian-todotxt/data.json` exists relative to the vault root.
-3. If it exists, parse it as JSON and extract:
-   - `todoPath` (e.g., `"KB_2/00. Inbox/02. Tasks/todo.md"`) — resolve to an absolute path.
-   - `projectsPath` (e.g., `"KB_2/Projects"`) — resolve to an absolute path. If this key is absent, ask the user where their projects folder is located in the vault.
-   If `data.json` does not exist, ask the user for both paths.
-4. **Write the session file** so all subsequent workflows and skills can access the paths without re-reading `data.json`:
-```bash
-cat > /tmp/obsidian_todo_session.env << 'EOF'
-OBSIDIAN_TODO_PATH=/absolute/path/to/todo.md
-OBSIDIAN_PROJECTS_PATH=/absolute/path/to/projects
-EOF
-```
-Replace the placeholder values with the actual resolved absolute paths.
-
-**Example data.json**:
-```json
-{
-  "todoPath": "KB_2/00. Inbox/02. Tasks/todo.md",
-  "projectsPath": "KB_2/Projects",
-  "additionalPaths": "",
-  "archivePath": "KB_2/00. Inbox/02. Tasks/done.md"
-}
-```
-
 ### F. Fetching Top k Todos (Composite Urgency Score)
-To surface the most important tasks, fetch and return the top k uncompleted tasks ranked by composite urgency (default k=10).
 
-**Logic**:
-1. Parse all task lines from the todo file (skip completed tasks with `x ` prefix, skip headers/dividers, skip pure-URL lines).
-2. Compute a **composite urgency score** for each task:
-   - **Priority score**: A=26, B=25, C=24, ..., Z=1, none=0
-   - **Proximity score**: linear scale from 60 (overdue ≥30 days) to 0 (due ≥30 days away): `max(0, min(60, 30 - days_until))`
-   - **Urgency = priority_score + proximity_score**
-3. Sort tasks by urgency descending.
-4. Return the top k.
-
-**Output Format** (as table with Priority, Due Date, Score, Description):
+To rank tasks, use the bundled script:
 
 ```bash
-| # | Priority | Due Date | Score | Description |
-|---|----------|----------|-------|-------------|
-| 1 | A | 2026-05-26 | 108 | Work on the various threads... |
-| 2 | — | 2026-04-30 | 50 | Financials for Q1 2026... |
+python3 "${OBSIDIAN_VAULT}/.claude/skills/obsidian-todotxt/scripts/get_top_todos.py" "$todoPath" 10
 ```
 
-**Helper Script Reference**:
-A reusable Python script is available at `scripts/get_top_todos.py` alongside this `SKILL.md`. Use the Glob tool with pattern `**/obsidian-todotxt/SKILL.md` to locate this skill. Take the dirname of the result as `OBSIDIAN_TODOTXT_DIR`, then call from the vault root:
-
-```bash
-python3 "$OBSIDIAN_TODOTXT_DIR/scripts/get_top_todos.py" <path_to_todo_file> [k]
-```
-
-Or with environment variables:
-```bash
-python3 "$OBSIDIAN_TODOTXT_DIR/scripts/get_top_todos.py" "$TODO_PATH" 5
-```
-
-This script:
-- Parses uncompleted tasks (skips `x ` prefixed tasks)
-- Computes composite urgency score for each task
-- Returns top k sorted by urgency descending (default k=10)
-- Formats output as a table with Priority, Due Date, Score, and Description
-
-### G. Action a Todo (Entry Point for obsidian-todo-action)
-
-Workflow G builds on Workflows E and F — it does not repeat their steps. Before running Workflow G, ensure:
-- `todoPath` and `projectsPath` are known (Workflow E)
-- The top-k ranked table has already been displayed to the user (Workflow F)
-
-**Steps:**
-1. Ask the user: *"Which todo do you want to work on?"* (referencing the numbered table displayed by Workflow F above)
-2. User picks one by number
-3. Note the full raw todo line, `todoPath`, and `projectsPath`, then invoke the `obsidian-todo-action` skill passing these three values as context for the session
+The script parses uncompleted tasks, computes a composite urgency score (priority A=26…Z=1 + proximity 60→0 over a 30-day window), and returns the top k sorted descending as a markdown table with Priority, Due Date, Score, and Description columns.
