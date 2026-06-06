@@ -1,14 +1,50 @@
 ---
 name: obsidian-todo-action
 description: Action a single Obsidian todo: reads project context and related tasks, adaptively assesses what's needed (sub-tasks, email drafts, calendar invites), generates all artifacts into the project folder, and updates project.md — all in one session.
-compatibility: Paths (todoPath, projectsPath) must be provided by the caller. Scripts are in scripts/ relative to this skill.
+compatibility: When called by an orchestrator, todoPath, projectsPath, and OBSIDIAN_VAULT must be provided. When called independently, Section 0 detects the vault and resolves all paths automatically.
 ---
 
 # Obsidian Todo Action Skill
 
 Actions a single todo from the user's Obsidian vault in one focused session. Reads project context, decides adaptively what help is needed, generates artifacts (sub-tasks, email drafts, calendar invites, action notes), and updates the project folder.
 
-Paths (`todoPath`, `projectsPath`) must be provided by the caller. The skill now starts at Section 1 and handles todo selection, parsing, and project setup before proceeding to context gathering.
+When invoked by an orchestrator, `todoPath`, `projectsPath`, and `OBSIDIAN_VAULT` must be provided. When invoked independently, Section 0 handles vault detection and path resolution automatically.
+
+> **Process isolation:** Each bash tool call runs in a separate shell process. Re-source `$OBSIDIAN_VAULT/.env` at the top of any bash script that uses env vars from that file.
+
+---
+
+## 0. Startup (skip if orchestrator already provided todoPath, projectsPath, and OBSIDIAN_VAULT)
+
+Run this section only when the skill is invoked directly — i.e. when none of `todoPath`, `projectsPath`, or `OBSIDIAN_VAULT` were supplied by the caller.
+
+### 0a. Detect vault root
+
+```bash
+bash "$HOME/.maam/registries/surjit_skills/skills/obsidian-todo-action/scripts/detect-vault.sh"
+```
+
+- **COUNT=0** — stop. Tell the user: "Could not find an Obsidian vault in `$PWD` or any parent directory. Please run from inside your vault."
+- **COUNT=1** — use the single printed path as `OBSIDIAN_VAULT`.
+- **COUNT≥2** — present the numbered list and ask the user which is the correct vault root.
+
+Report: `✓ Vault root: <OBSIDIAN_VAULT>`
+
+### 0b. Load environment variables
+
+```bash
+set -a
+source "$OBSIDIAN_VAULT/.env" 2>/dev/null || true
+set +a
+```
+
+### 0c. Resolve todoPath and projectsPath
+
+Read `$OBSIDIAN_VAULT/.obsidian/plugins/obsidian-todotxt/data.json`. Extract:
+- `todoPath` → resolve to `$OBSIDIAN_VAULT/<todoPath>`
+- `projectsPath` → resolve to `$OBSIDIAN_VAULT/<projectsPath>`
+
+If the file is absent, ask the user for both paths.
 
 ---
 
