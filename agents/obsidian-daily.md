@@ -58,6 +58,8 @@ set +a
 
 Required variables (from `$OBSIDIAN_VAULT/.env`): `ASR_CLI`, `MODEL_PATH`, `AUDIO_TEMP_DIR`, `IDEAS_INBOX`.
 
+> **Process isolation:** Each bash tool call runs in a separate shell process. Variables set above do not carry over to subsequent calls. Re-source `$OBSIDIAN_VAULT/.env` at the top of any bash script that uses `ASR_CLI`, `MODEL_PATH`, `AUDIO_TEMP_DIR`, or `IDEAS_INBOX`.
+
 ### 3. Resolve todo & project paths (once, held in context for the whole session)
 
 Read `$OBSIDIAN_VAULT/.obsidian/plugins/obsidian-todotxt/data.json`. Extract:
@@ -79,11 +81,14 @@ If the file is absent, use defaults.
 
 ## Pipeline Steps
 
+> **Reminder:** Each bash invocation is a new process. Re-source `$OBSIDIAN_VAULT/.env` at the top of any bash script that uses `ASR_CLI`, `MODEL_PATH`, `AUDIO_TEMP_DIR`, or `IDEAS_INBOX`.
+
 ### Step 1: Transcribe audio
 
 **Prerequisites check:**
 
 ```bash
+set -a; source "$OBSIDIAN_VAULT/.env"; set +a
 [ -x "$ASR_CLI/asr" ] || echo "ERROR: $ASR_CLI/asr not found or not executable"
 [ -n "$MODEL_PATH" ]  || echo "ERROR: MODEL_PATH is not set"
 [ -n "$AUDIO_TEMP_DIR" ] || echo "ERROR: AUDIO_TEMP_DIR is not set"
