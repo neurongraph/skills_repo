@@ -1,2 +1,2 @@
-# skills_repo
-This is a set of miscellaneous skills across various domains that I use for my side projects
+# agentic assets
+This is a set of miscellaneous skills and agents across various domains that I use for my side projects
