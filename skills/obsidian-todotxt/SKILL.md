@@ -1,11 +1,45 @@
 ---
 name: obsidian-todotxt
-description: Read, parse, write, sort, and complete tasks in Obsidian vaults using our custom Todo.txt format. Use when adding, completing, uncompleting, or restructuring todo.txt tasks. The invoking agent provides todoPath and projectsPath — this skill contains only the format spec and edit workflows.
+description: Read, parse, write, sort, and complete tasks in Obsidian vaults using our custom Todo.txt format. Use when adding, completing, uncompleting, or restructuring todo.txt tasks. When called independently, Section 0 detects the vault and resolves todoPath automatically.
 ---
 
 # Obsidian Todo.txt Agent Skill
 
 This skill guides agents on how to read, parse, write, sort, and complete tasks in an Obsidian vault conforming to our custom **Todo.txt spec and its extensions**.
+
+---
+
+## 0. Startup (skip if orchestrator already provided todoPath and OBSIDIAN_VAULT)
+
+Run this section only when the skill is invoked directly — i.e. when `todoPath` or `OBSIDIAN_VAULT` were not supplied by the caller.
+
+> **Process isolation:** Each bash tool call runs in a separate shell process. Re-source `$OBSIDIAN_VAULT/.env` at the top of any bash script that uses env vars from that file.
+
+### 0a. Detect vault root
+
+```bash
+bash "$HOME/.maam/registries/surjit_skills/skills/obsidian-todotxt/scripts/detect-vault.sh"
+```
+
+- **COUNT=0** — stop. Tell the user: "Could not find an Obsidian vault in `$PWD` or any parent directory. Please run from inside your vault."
+- **COUNT=1** — use the single printed path as `OBSIDIAN_VAULT`.
+- **COUNT≥2** — present the numbered list and ask the user which is the correct vault root.
+
+Report: `✓ Vault root: <OBSIDIAN_VAULT>`
+
+### 0b. Load environment variables
+
+```bash
+set -a
+source "$OBSIDIAN_VAULT/.env" 2>/dev/null || true
+set +a
+```
+
+### 0c. Resolve todoPath
+
+Read `$OBSIDIAN_VAULT/.obsidian/plugins/obsidian-todotxt/data.json`. Extract `todoPath` and resolve to `$OBSIDIAN_VAULT/<todoPath>`.
+
+If the file is absent, ask the user for the path to `todo.md`.
 
 ---
 
@@ -57,7 +91,7 @@ When reconstructing a line from a task object, assemble the parts strictly in th
 
 ## 4. Agent Workflows for Vault Interactions
 
-When reading or modifying a vault's `todo.md` file, agents MUST follow these workflows to maintain list integrity. The `todoPath` is provided by the invoking agent.
+When reading or modifying a vault's `todo.md` file, agents MUST follow these workflows to maintain list integrity. The `todoPath` is resolved in Section 0 or provided by the invoking agent.
 
 ### A. Quick-Entry Inbox (Adding a New Task)
 * **Rule**: Keep **exactly 3 empty lines** at the very top of `todo.md`.
