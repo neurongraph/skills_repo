@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+import uuid
 import datetime
 import subprocess
 
@@ -45,7 +46,7 @@ VERSION:2.0
 PRODID:-//Python//Outlook Draft Calendar Generator//EN
 CALSCALE:GREGORIAN
 BEGIN:VEVENT
-UID:uid_{dtstamp_str}
+UID:{uuid.uuid4()}
 DTSTAMP:{dtstamp_str}
 DTSTART:{dtstart_str}
 DTEND:{dtend_str}

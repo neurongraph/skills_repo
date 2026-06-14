@@ -189,7 +189,7 @@ If a calendar invite was confirmed:
 
 ```bash
 python3 "${OBSIDIAN_VAULT}/.claude/skills/obsidian-todo-action/scripts/create_outlook_calendar_draft.py" \
-  --summary "todo description" \
+  --summary "ToDo: todo description" \
   --description "brief agenda derived from context" \
   --location "Microsoft Teams" \
   --start "YYYY-MM-DDTHH:MM" \

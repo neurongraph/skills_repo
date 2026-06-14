@@ -326,7 +326,7 @@ Iterate over every entry in `scheduled.json` and call the bundled script — **n
 
 ```bash
 python3 "${OBSIDIAN_VAULT}/.claude/skills/weekly-todos-planner/scripts/create_outlook_calendar_draft.py" \
-  --summary "[description]" \
+  --summary "ToDo: [description]" \
   --description "Focus block. Priority: [priority]. Due: [due]." \
   --location "" \
   --start "YYYY-MM-DDTHH:MM" \
