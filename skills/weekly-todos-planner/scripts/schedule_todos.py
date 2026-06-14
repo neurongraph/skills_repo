@@ -67,13 +67,17 @@ def slot_todo(todo, free_windows_by_date, min_slot, max_splits, slot_type):
     success, or None if it cannot be scheduled within the split limit.
 
     Windows are consumed in-place from free_windows_by_date[date].
+
+    Strategy: collect (date, orig_w_start, orig_w_end, slot_start, slot_end) during
+    a dry-run pass, then commit by matching on orig_w_start — safe even when multiple
+    windows on the same day are used, because merged windows have unique start times.
     """
     remaining = todo["duration"]
-    used = []  # list of (date, window_idx, start_min, end_min)
+    used = []  # list of (date, orig_w_start, orig_w_end, slot_start, slot_end)
 
     for date_str in sorted(free_windows_by_date.keys()):
         windows = free_windows_by_date[date_str]
-        for i, win in enumerate(windows):
+        for win in windows:
             if remaining <= 0:
                 break
             w_start = hm_to_min(win["start"])
@@ -84,7 +88,7 @@ def slot_todo(todo, free_windows_by_date, min_slot, max_splits, slot_type):
             take = min(available, remaining)
             if take < min_slot:
                 continue  # what we'd take is too small to be useful
-            used.append((date_str, i, w_start, w_start + take))
+            used.append((date_str, w_start, w_end, w_start, w_start + take))
             remaining -= take
         if remaining <= 0:
             break
@@ -95,28 +99,40 @@ def slot_todo(todo, free_windows_by_date, min_slot, max_splits, slot_type):
     if len(used) > max_splits:
         return None  # too fragmented
 
-    # Commit: consume the used portions from the windows
-    # Work backwards through used to avoid index shifting issues
-    for date_str, win_idx, slot_start, slot_end in used:
-        windows = free_windows_by_date[date_str]
-        win = windows[win_idx]
-        w_start = hm_to_min(win["start"])
-        w_end = hm_to_min(win["end"])
+    # Commit: find each window by its original start time and trim it.
+    # Iterate in reverse order per day so that earlier modifications don't
+    # affect the position of later windows we still need to find.
+    from collections import defaultdict
+    by_day = defaultdict(list)
+    for entry in used:
+        by_day[entry[0]].append(entry)
 
-        # Replace this window with any remainder
-        new_windows = windows[:win_idx]
-        if slot_start > w_start:
-            new_windows.append({"start": min_to_hm(w_start), "end": min_to_hm(slot_start),
-                                 "minutes": slot_start - w_start})
-        if slot_end < w_end:
-            new_windows.append({"start": min_to_hm(slot_end), "end": min_to_hm(w_end),
-                                 "minutes": w_end - slot_end})
-        new_windows.extend(windows[win_idx + 1:])
-        free_windows_by_date[date_str] = new_windows
+    for date_str, entries in by_day.items():
+        # Process entries for this day in reverse start-time order so we can
+        # rebuild the list without index drift.
+        for _, orig_w_start, orig_w_end, slot_start, slot_end in sorted(
+            entries, key=lambda e: e[1], reverse=True
+        ):
+            windows = free_windows_by_date[date_str]
+            new_windows = []
+            for win in windows:
+                ws = hm_to_min(win["start"])
+                we = hm_to_min(win["end"])
+                if ws == orig_w_start:
+                    # This is the window we consumed from — replace with remnants
+                    if slot_start > ws:
+                        new_windows.append({"start": min_to_hm(ws), "end": min_to_hm(slot_start),
+                                             "minutes": slot_start - ws})
+                    if slot_end < we:
+                        new_windows.append({"start": min_to_hm(slot_end), "end": min_to_hm(we),
+                                             "minutes": we - slot_end})
+                else:
+                    new_windows.append(win)
+            free_windows_by_date[date_str] = new_windows
 
     total_parts = len(used)
     slots = []
-    for part_idx, (date_str, _, slot_start, slot_end) in enumerate(used):
+    for part_idx, (date_str, _, _orig_w_end, slot_start, slot_end) in enumerate(used):
         slots.append({
             "date": date_str,
             "start": min_to_hm(slot_start),
