@@ -115,10 +115,21 @@ def main():
     with open(meetings_path) as f:
         meetings = json.load(f)
 
+    OOO_KEYWORDS = {
+        "ooo", "out of office", "out-of-office", "leave", "annual leave",
+        "sick leave", "pto", "vacation", "holiday", "off", "away",
+    }
+
+    def is_ooo(meeting):
+        topic = meeting.get("topic", meeting.get("summary", "")).lower()
+        return any(kw in topic for kw in OOO_KEYWORDS)
+
     # Group by date
     by_date = {}
     for m in meetings:
         by_date.setdefault(m["date"], {"accepted": [], "tentative": []})
+        if is_ooo(m):
+            continue  # FYI-only entries — never block time
         s = hm_to_min(m["start"])
         e = hm_to_min(m["end"])
         # Clamp to working hours for busy calculation; slots outside are ignored

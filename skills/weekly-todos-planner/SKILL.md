@@ -147,6 +147,17 @@ If that fails, fall back to reading the PDF directly with the Read tool and extr
 
 ---
 
+### OOO / leave / vacation entries
+
+Before building the output table, filter out any calendar entry whose topic matches patterns like:
+
+- "OOO", "Out of Office", "Out of office"
+- "Leave", "Annual leave", "Sick leave", "PTO"
+- "Vacation", "Holiday", "Off"
+- Any all-day or multi-day block with similar wording
+
+These are informational markers, not real meetings. **Do not include them in the meetings table and do not treat them as busy time.** If the entire day is marked OOO, treat that day as fully free within working hours (the person is away but the slots are still available for planning purposes — they can adjust after import).
+
 ### Unified output
 
 Regardless of input type, produce this markdown table and save it as `week-meetings.md` in the output directory from Section 0e:
