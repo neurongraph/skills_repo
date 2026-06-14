@@ -123,18 +123,13 @@ If the file already uses the target table format (Date / Start / End / Topic / S
 
 ### Path C — PDF
 
-Convert the PDF to markdown first using `markitdown`, then parse the result exactly as Path B:
+Convert the PDF to markdown first using `uvx`, then parse the result exactly as Path B:
 
 ```bash
-pipx run markitdown /path/to/calendar.pdf > /tmp/weekly-calendar-converted.md
+uvx --with "markitdown[all]" markitdown /path/to/calendar.pdf -o /tmp/weekly-calendar-converted.md
 ```
 
-If `markitdown` is not available via `pipx`, try the direct command:
-```bash
-markitdown /path/to/calendar.pdf > /tmp/weekly-calendar-converted.md
-```
-
-If both fail, fall back to reading the PDF directly with the Read tool and extract meeting fields manually (Date, Start, End, Topic, Status) from whatever structure is present.
+If that fails, fall back to reading the PDF directly with the Read tool and extract meeting fields manually (Date, Start, End, Topic, Status) from whatever structure is present.
 
 ---
 
