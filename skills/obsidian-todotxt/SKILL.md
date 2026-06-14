@@ -1,6 +1,6 @@
 ---
 name: obsidian-todotxt
-description: Read, parse, write, sort, and complete tasks in Obsidian vaults using our custom Todo.txt format. Use when adding, completing, uncompleting, or restructuring todo.txt tasks. When called independently, Section 0 detects the vault and resolves todoPath automatically.
+description: Read, parse, write, sort, and complete tasks in Obsidian vaults using our custom Todo.txt format. Use when adding, completing, uncompleting, or restructuring todo.txt tasks. Use it to retrieve Top 10 or Top K todos or urgent tasks and todos. When called independently, Section 0 detects the vault and resolves todoPath automatically.
 ---
 
 # Obsidian Todo.txt Agent Skill
