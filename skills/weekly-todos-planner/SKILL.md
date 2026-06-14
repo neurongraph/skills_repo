@@ -17,19 +17,33 @@ compatibility: >
 
 # Weekly Todos Planner
 
-Takes a screenshot of your weekly calendar, extracts existing meetings, retrieves your top 10 urgent Obsidian todos, slots them into free time, and produces .ics files you can import directly into Outlook.
+An end-to-end weekly planning skill that turns your calendar and Obsidian todos into a ready-to-import Outlook schedule.
+
+**What it does, step by step:**
+1. **Parses your calendar** — accepts a screenshot, a markdown file, or a PDF; extracts all meetings with their dates, times, and acceptance status (accepted vs. tentative)
+2. **Retrieves your top 10 todos** — pulls the highest-urgency tasks from your Obsidian vault using the obsidian-todotxt urgency scorer
+3. **Finds free slots** — merges overlapping meetings, applies your working hours, and identifies usable free windows (and tentative windows as backup)
+4. **Schedules todos into slots** — fills slots in urgency order, respects a minimum slot size so no tiny gaps are used, and caps how many fragments a single todo can be split into
+5. **Handles overflow** — if todos can't all fit, asks which meetings you'd decline or downgrade, then re-slots; any remaining overflow is documented
+6. **Lets you adjust** — shows the draft plan and accepts natural language edits before finalising
+7. **Generates .ics files** — one per slot, ready to double-click and import into Outlook as editable appointments
 
 ---
 
 ## Configuration
 
-Edit these values here to change working hours for all future runs:
+Edit these values here to change defaults for all future runs:
 
 ```
 WORKING_HOURS_START = 10:00
 WORKING_HOURS_END   = 20:00
 WORKING_DAYS        = Mon, Tue, Wed, Thu, Fri
+MIN_SLOT_MINUTES    = 15
+MAX_SPLITS_PER_TODO = 4
 ```
+
+- `MIN_SLOT_MINUTES` — ignore any free window shorter than this. Gaps under 30 min are dead time, not schedulable focus blocks.
+- `MAX_SPLITS_PER_TODO` — if scheduling a todo would require more than this many non-contiguous fragments, treat it as unschedulable and move it to overflow rather than producing a fragmented mess.
 
 > **Process isolation:** Each bash tool call runs in a separate shell process. Re-source `$OBSIDIAN_VAULT/.env` at the top of any bash script that needs env vars from that file.
 
@@ -168,16 +182,25 @@ Wait for the user's response before continuing.
 
 ## 3. Find Free Slots
 
-Using the `WORKING_HOURS_START`, `WORKING_HOURS_END`, and `WORKING_DAYS` from the Configuration block:
+Save the verified meetings table from Section 1 as `meetings.json` in the output directory:
 
-1. Build a complete 30-minute block grid for each working day of the calendar week (e.g. Mon 10:00, 10:30, 11:00 … 19:30).
-2. Classify each block against the meeting table from Section 1:
-   - `busy` — the block overlaps an **accepted** meeting
-   - `tentative` — the block overlaps a **tentative** meeting (and is not busy)
-   - `free` — no overlap with any meeting
-3. Group consecutive `free` blocks into **free windows** (e.g. "Mon 11:00–13:00, 120 min").
-4. Group consecutive `tentative` blocks into **tentative windows** (backup capacity).
-5. Report totals: "You have **X h** of free time and **Y h** of tentative time across the week."
+```json
+[
+  {"date": "2026-06-16", "start": "09:00", "end": "10:00", "status": "accepted"},
+  {"date": "2026-06-17", "start": "14:00", "end": "15:30", "status": "tentative"}
+]
+```
+
+Then run the bundled slot-finder — **do not write custom interval-merging code**:
+
+```bash
+python3 "${OBSIDIAN_VAULT}/.claude/skills/weekly-todos-planner/scripts/find_free_slots.py" \
+  "<output_dir>/meetings.json" \
+  "WORKING_HOURS_START" "WORKING_HOURS_END" \
+  > "<output_dir>/free_slots.json"
+```
+
+The script merges overlapping meetings, respects working hours, and outputs per-day `free` and `tentative` windows with minute totals. Read the JSON and report: "You have **X h** of free time and **Y h** of tentative time across the week."
 
 ---
 
@@ -199,12 +222,62 @@ If the description doesn't clearly match any category, ask: "How long do you thi
 
 ### Slot assignment
 
-Work through todos one by one, filling from the earliest available slot forward:
+Save the todos (after duration estimation and user confirmation) as `todos.json` in the output directory — sorted highest urgency score first:
 
-1. **Prefer free over tentative.** Only use tentative slots once all free slots are consumed. When you start using tentative time, note it: "I'm now scheduling into tentative meeting slots."
-2. **Single slot** — if the estimated duration fits in one contiguous free window, assign it directly.
-3. **Multi-slot split** — if the duration exceeds the longest remaining contiguous window, split the todo across multiple slots. Name each part: `"[description] (1 of N)"`, `"(2 of N)"`, etc. The number N is fixed upfront based on total duration ÷ available window size (rounding up to 30-min chunks).
-4. **Cannot schedule** — if a todo cannot be placed in any free or tentative slot, list it separately: "These todos couldn't fit this week and may carry to next week: [list]."
+```json
+[
+  {"description": "Write Q2 report", "priority": "A", "due": "2026-06-20", "duration": 60, "score": 58},
+  {"description": "Review vendor RFI", "priority": "B", "due": "2026-06-22", "duration": 30, "score": 29}
+]
+```
+
+Then run the bundled scheduler — **do not write custom scheduling code**:
+
+```bash
+python3 "${OBSIDIAN_VAULT}/.claude/skills/weekly-todos-planner/scripts/schedule_todos.py" \
+  "<output_dir>/free_slots.json" \
+  "<output_dir>/todos.json" \
+  "MIN_SLOT_MINUTES" "MAX_SPLITS_PER_TODO" \
+  > "<output_dir>/scheduled.json"
+```
+
+The scheduler:
+- Fills free slots first, tentative slots as fallback
+- Skips any window smaller than `MIN_SLOT_MINUTES` (default 30) — gaps under this are dead time, not focus time
+- Refuses to split a todo into more than `MAX_SPLITS_PER_TODO` (default 3) fragments — over-fragmented todos go to overflow instead
+- Outputs `scheduled` (list of placed slots) and `unscheduled` (overflow todos)
+
+If `unscheduled` is non-empty, enter the **overflow negotiation loop** below before showing the draft plan.
+
+### Overflow negotiation loop
+
+When todos overflow, show the user which todos couldn't be scheduled and which meetings could be freed up:
+
+```
+These todos couldn't be scheduled — there isn't enough free time this week:
+
+  • [todo A] — needs 60 min
+  • [todo B] — needs 90 min
+
+Your calendar has the following meetings that could potentially be freed up:
+
+  | Date       | Start | End   | Topic                  | Current Status |
+  |------------|-------|-------|------------------------|----------------|
+  | 2026-06-17 | 14:00 | 15:30 | Product review         | tentative      |
+  | 2026-06-18 | 11:00 | 12:00 | Weekly sync            | accepted       |
+
+Would you like to decline or mark any of these as tentative to make room?
+(e.g. "decline Product review", "mark Weekly sync tentative", or "no changes")
+```
+
+On each user response:
+- **"decline [meeting]"** — remove it from the meetings table; its blocks become `free`.
+- **"mark [meeting] tentative"** — update its status to `tentative`; its blocks shift from `busy` to `tentative`.
+- **"no changes"** / "done" — exit the loop.
+
+After each update, re-classify all blocks (Section 3 logic) with the updated meeting table and re-attempt slotting the remaining overflow todos. If new slots open up, fill them. If todos are still unscheduled, show the refreshed overflow list and repeat.
+
+Exit when either all todos are scheduled, or the user indicates they don't want to free up any more meetings. Any todos that remain unscheduled at this point are carried forward as **unscheduled overflow** and documented in the final summary (Section 6).
 
 ### Draft plan output
 
@@ -238,19 +311,22 @@ Re-apply edits and show the revised table. Repeat this loop until the user says 
 
 For each confirmed todo slot, run the bundled calendar draft script:
 
+Iterate over every entry in `scheduled.json` and call the bundled script — **never write custom ICS generation code**:
+
 ```bash
 python3 "${OBSIDIAN_VAULT}/.claude/skills/weekly-todos-planner/scripts/create_outlook_calendar_draft.py" \
-  --summary "[todo description]" \
-  --description "Focus block. Priority: [A/B/—]. Due: [YYYY-MM-DD or —]." \
+  --summary "[description]" \
+  --description "Focus block. Priority: [priority]. Due: [due]." \
   --location "" \
   --start "YYYY-MM-DDTHH:MM" \
   --end "YYYY-MM-DDTHH:MM" \
   --output "<output_dir>/YYYY-MM-DD-HHMM-<slug>.ics"
 ```
 
-**Filename slug**: lowercase the todo description, replace spaces and non-alphanumeric characters with hyphens, truncate at 40 characters.
-
-**Multi-slot suffix**: append `-1-of-N`, `-2-of-N`, etc. to both the `--summary` and the filename.
+**Filename rules**:
+- Slug = lowercase description, non-alphanumeric → hyphens, collapse repeated hyphens, truncate at 40 chars
+- Time portion = `HHMM` (four digits, **no colons** — colons are not valid in filenames on macOS/Windows)
+- Multi-part suffix: `-1-of-N`, `-2-of-N` etc. appended to both slug and `--summary`
 
 **Example filenames**:
 ```
@@ -270,4 +346,18 @@ After all files are created, print a session summary:
   ...
 
 Double-click each file to open as an editable appointment in Outlook.
+```
+
+If any todos remained unscheduled after the overflow negotiation loop, append an **Unscheduled** section to the summary and save it as `week-plan-summary.md` in the output directory:
+
+```markdown
+## Unscheduled Todos
+
+These tasks could not be fitted into the week and will need to carry over
+or be addressed another way:
+
+| Priority | Due        | Description              | Needed  |
+|----------|------------|--------------------------|---------|
+| A        | 2026-06-20 | Prepare board deck       | 90 min  |
+| B        | —          | Research vendor options  | 90 min  |
 ```
